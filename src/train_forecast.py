@@ -90,8 +90,8 @@ def fit_var(s: pd.Series, tab, first_lead, last_lead, last_obs_offset, extra=Non
     return coefs, maes
 
 
-def main():
-    df = to_hard(load_hourly())
+def fit_params(df: pd.DataFrame, verbose: bool = False) -> dict:
+    """Entrena tots els models amb el DataFrame horari (ja en Mode Difícil) i retorna params."""
     full = df.reindex(pd.date_range(df.index.min(), df.index.max(), freq="1h"))
 
     params = {"pv_scale": 12.0}
@@ -127,13 +127,77 @@ def main():
     params["coef_pv"] = c
     report["pv"] = m
 
+    # Història inicial: les últimes 72 h de cada bloc de train. El test (últims 7 dies de cada mes)
+    # comença just quan acaba cada bloc, així l'agent no comença "a cegues".
+    hist = {}
+    gap = df.index.to_series().diff() > pd.Timedelta(hours=1)
+    for _, b in df.groupby(gap.cumsum()):
+        tail = b.iloc[-72:]
+        for key, col in [("precio", "precio_eur_per_kwh"), ("co2", "co2_kg_per_kwh"), ("load", "load_kw"),
+                         ("pv", "pv_kw"), ("irr", "irradiancia_wm2")]:
+            hist.setdefault(key, {}).update({ts.strftime("%Y-%m-%d %H:%M"): round(float(v), 5)
+                                             for ts, v in tail[col].items()})
+    params["hist"] = hist
+
+    if verbose:
+        for k, m in report.items():
+            leads = sorted(m)
+            show = [leads[0], leads[len(leads) // 2], leads[-1]]
+            print(k, {l: f"model {m[l][0]:.4g} vs perfil {m[l][1]:.4g}" for l in show})
+    return params
+
+
+LGB_PARAMS = dict(objective="regression", learning_rate=0.05, num_leaves=31, min_data_in_leaf=50,
+                  feature_fraction=0.9, bagging_fraction=0.8, bagging_freq=1, verbose=-1, seed=0)
+LGB_ROUNDS = 400
+COLS = {"precio": "precio_eur_per_kwh", "co2": "co2_kg_per_kwh", "load": "load_kw", "pv": "pv_kw",
+        "irr": "irradiancia_wm2", "temp": "temp_ambient_c"}
+
+
+def fit_lgb(df: pd.DataFrame, params: dict, step: int = 3) -> dict:
+    """Entrena un LightGBM per variable (preu, CO2, consum, solar) que prediu la desviació respecte
+    al perfil típic, amb les features EXACTES de BatteryAgent._feats (importem l'agent)."""
+    import importlib.util
+    import lightgbm as lgb
+    spec = importlib.util.spec_from_file_location("hard_agent", ROOT / "submission_hard" / "agent.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    agent = mod.BatteryAgent(params={k: v for k, v in params.items() if k != "lgb"})
+    for k, col in COLS.items():
+        agent.hist[k] = {ts: float(v) for ts, v in df[col].items() if v == v}
+
+    one = pd.Timedelta(hours=1)
+    out = {}
+    for key, offset, hs in [("precio", 2, range(3, 24)), ("co2", 2, range(3, 24)),
+                            ("load", -1, range(0, 24)), ("pv", -1, range(0, 24))]:
+        hist = agent.hist[key]
+        Xs, ys = [], []
+        for t in df.index[::step]:
+            if (t + offset * one) not in hist:
+                continue
+            hs_ok = [h for h in hs if (t + h * one) in hist]
+            if not hs_ok:
+                continue
+            X, py = agent._feats(key, t, offset, hs_ok)
+            Xs.append(X)
+            ys.append(np.array([hist[t + h * one] for h in hs_ok]) - py)
+        X, y = np.vstack(Xs), np.concatenate(ys)
+        booster = lgb.train(LGB_PARAMS, lgb.Dataset(X, y), num_boost_round=LGB_ROUNDS)
+        out[key] = booster.model_to_string()
+    return out
+
+
+def fit_all(df: pd.DataFrame, verbose: bool = False) -> dict:
+    params = fit_params(df, verbose=verbose)
+    params["lgb"] = fit_lgb(df, params)
+    return params
+
+
+def main():
+    params = fit_all(to_hard(load_hourly()), verbose=True)
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(params), encoding="utf-8")
     print(f"Desat {OUT} ({OUT.stat().st_size/1024:.0f} KB)")
-    for k, m in report.items():
-        leads = sorted(m)
-        show = [leads[0], leads[len(leads) // 2], leads[-1]]
-        print(k, {l: f"model {m[l][0]:.4g} vs perfil {m[l][1]:.4g}" for l in show})
 
 
 if __name__ == "__main__":

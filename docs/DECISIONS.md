@@ -25,3 +25,10 @@ Registre de decisions tècniques i el seu perquè (servirà per a la presentaci�
 ## D6 — L'agent sap quan s'acaba l'episodi (14/11)
 **Decisió:** no planificar més enllà del final de mes, que és quan acaba cada setmana de test (els últims 7 dies de cada mes).
 **Per què:** l'energia que queda a la bateria al final no puntua. Al Mode Difícil (bateria de 6 MWh) val +0,66 punts al train. Si la web executés les setmanes seguides, el cost seria mínim: la bateria es buidaria una mica abans del salt de setmana.
+
+## D7 — Decidim amb validació creuada, no amb el train (14/11)
+**Decisió:** cada canvi del Mode Difícil s'accepta només si millora `src/cv_hard.py`, que entrena les prediccions sense l'última setmana de cada mes i avalua l'agent en aquella setmana (com el test real).
+**Per què:** in-sample, LightGBM semblava millor a tot arreu, però a la CV empitjora el consum i la solar. Sense CV hauríem pujat una versió pitjor.
+
+## D8 — LightGBM només per a preu/CO2, en mitjana amb Ridge (14/11)
+**Per què:** és on la CV mostra millora. La mitjana de dos models diferents redueix l'error. El model es desa com a text (`model_to_string`), per evitar incompatibilitats de versions de pickle al servidor.

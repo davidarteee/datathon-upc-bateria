@@ -16,3 +16,7 @@ Si es puja al leaderboard, apunteu-hi també el score públic.
 | 6 | 14/11 | David | hard v2: + ahir-2, desviació mitjana 24 h, marge descàrrega 50 kW | 20,007 | 18,75 | 22,94 | 0 | — | Marge 150 kW: 19,25 (massa). Valor terminal i H=36/72: cap efecte. |
 | 6b | 14/11 | David | diag v2: prediccions perfectes de preu+CO2 / consum / solar / tot | 20,79 / 20,26 / 20,28 / 21,35 | | | 0 | — | Amb tot perfecte i H=72 encara 21,78 < 22,57 → el que falta és saber on acaba la setmana. |
 | 7 | 14/11 | David | **hard v3: + final d'episodi (final de mes)** | **20,666** | 19,38 | 23,67 | 0 | pendent | +0,66. Estàndard local sense canvis (6,257), però a la web pot ajudar. |
+| 8 | 14/11 | David | **CV honesta** (`src/cv_hard.py`, 11 setmanes = última setmana de cada bloc) | oracle 23,44 · v3 21,35 | | | 0 | — | A partir d'ara decidim amb la CV, no in-sample. |
+| 9 | 14/11 | David | LightGBM (features = `BatteryAgent._feats`) per a tot / preu / CO2 / consum / solar | 20,96 / 21,42 / 21,44 / 21,18 / 21,12 (CV) | | | 0 | — | Només ajuda en preu i CO2. |
+| 10 | 14/11 | David | Mitjana 50/50 Ridge+LGB (preu, CO2) | 21,48 (CV) | | | 0 | — | lgb_w 0,7: 21,63 (soroll); ens quedem amb 0,5. |
+| 11 | 14/11 | David | Marge descàrrega 25 kW + 0,4·solar prevista | **21,61 (CV)** · 21,06 (42 setm.) | 19,82 | 23,94 | 0 | pendent | Marge 0: 21,31; 100 fix: 21,16. K 0,20/0,33: ±0,03 (indiferent). |

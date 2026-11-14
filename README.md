@@ -92,7 +92,8 @@ Avaluat amb `python src/evaluate.py <agent.py>` sobre el train, en trossos d'1 s
 **La nostra solució** ([submission_hard/](submission_hard/)): el mateix MPC-LP, amb tres canvis:
 1. **Prediccions** de les 24 h ([src/train_forecast.py](src/train_forecast.py) → `params.json`): preu i CO₂ de l'hora 4 a la 24, i consum i solar de totes. Per a cada variable i cada hora vista endavant es fa una regressió lineal (Ridge) amb aquestes dades: perfil típic (mes × laborable/festiu × hora), valor d'ahir i d'abans-d'ahir, desviació de les últimes hores i, per a la solar, claredat (irradiància observada / típica).
 2. **LP amb excedents:** `importació_t ≥ consum_t − solar_t + P_t`, `importació_t ≥ 0`. El model sap que el sol que sobra és gratis i que descarregar més del consum es perd.
-3. **Final d'episodi** (final de mes) i un **marge de 50 kW** en descarregar, per l'error de predicció del consum.
+3. **Final d'episodi** (final de mes) i un **marge en descarregar**: 25 kW + 40 % de la solar prevista, perquè a migdia la solar fa que el consum net sigui més incert.
+4. **LightGBM** (desat com a text dins `params.json`, sense pickle) per a preu i CO₂, en mitjana 50/50 amb la regressió lineal. L'agent precarrega les últimes 72 h de cada mes del train, que són just abans de cada setmana de test.
 
 | Versió (train, per setmanes) | Score | ΔCO₂ | ΔCost | Infr. |
 |---|---|---|---|---|
@@ -100,7 +101,22 @@ Avaluat amb `python src/evaluate.py <agent.py>` sobre el train, en trossos d'1 s
 | MPC amb prediccions perfectes (sense saber el final) | 21,78 | | | 0 |
 | hard v1 (prediccions simples) | 19,93 | 18,61 % | 23,00 % | 0 |
 | hard v2 (més features + marge 50 kW) | 20,01 | 18,75 % | 22,94 % | 0 |
-| **hard v3 (+ final d'episodi)** | **20,67** | 19,38 % | 23,67 % | **0** |
+| hard v3 (+ final d'episodi) | 20,67 | 19,38 % | 23,67 % | 0 |
+| **hard v4 (+ LightGBM preu/CO₂ en mitjana amb Ridge, marge segons solar, història precarregada)** | **21,06** | 19,82 % | 23,94 % | **0** |
+
+**Validació honesta** ([src/cv_hard.py](src/cv_hard.py)). Imita el test real: per a cada mes, es guarda l'**última setmana** del train i les prediccions s'entrenen amb la resta. La fem servir per **decidir** (els números de dalt són in-sample i surten optimistes).
+
+| CV (11 setmanes) | Score |
+|---|---|
+| Oracle | 23,44 |
+| MPC + prediccions perfectes (marge 0) | 23,44 |
+| hard v3 (Ridge) | 21,35 |
+| LightGBM per a tot | 20,96 ❌ (empitjora consum i solar) |
+| LightGBM només per a CO₂ | 21,44 |
+| Mitjana Ridge/LGB per a preu+CO₂ | 21,48 |
+| **+ marge = 25 kW + 0,4·solar prevista (v4)** | **21,61** |
+
+On queda el marge a la CV: preu+CO₂ perfectes **+1,0**, consum+solar perfectes **+0,65**.
 
 **On és el marge que queda** (punts que guanyaríem amb cada predicció perfecta, sobre la v2): preu + CO₂ **+0,78**, consum + solar **+0,56**, totes **+1,34**. És a dir: **millorar les prediccions és la feina que falta** (Cesc 👀).
 

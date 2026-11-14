@@ -24,13 +24,19 @@ import pandas as pd
 from scipy.optimize import linprog
 from scipy.sparse import csr_matrix, hstack, identity, vstack
 
+try:  # LightGBM és a la llista de llibreries permeses; si faltés, l'agent usa les regressions lineals
+    import lightgbm as lgb
+except Exception:  # pragma: no cover
+    lgb = None
+
 ETA = 0.9 ** 0.5
 H = 24
 
 
 class BatteryAgent:
-    def __init__(self):
-        p = json.loads((Path(__file__).parent / "params.json").read_text(encoding="utf-8"))
+    def __init__(self, params=None):
+        p = params if params is not None else json.loads(
+            (Path(__file__).parent / "params.json").read_text(encoding="utf-8"))
         self.prof = {k: np.asarray(v) for k, v in p["profiles"].items()}
         self.coef = {k: {int(h): np.asarray(c) for h, c in p[f"coef_{k}"].items()}
                      for k in ("precio", "co2", "load", "pv")}
@@ -38,12 +44,23 @@ class BatteryAgent:
         self.H = 24                   # hores de planificació
         self.K = 0.2617               # (0,3/0,7)·CO2_base/Cost_base al train del Mode Difícil
         self.term_alpha = 0.0         # valor de l'energia que queda al final de l'horitzó
-        self.discharge_margin = 50.0  # kW que deixem de marge en descarregar (error de predicció)
+        self.discharge_margin = 25.0  # kW de marge fix en descarregar (error de predicció del consum)
+        self.margin_pv = 0.4          # marge extra proporcional a la solar prevista (més incerta)
         # Final de l'episodi: el test són els últims 7 dies de cada mes -> s'acaba a final de mes.
         # (src/evaluate.py el fixa al final de cada setmana local per simular-ho.)
         self.episode_end = None
-        self.hist = {k: {} for k in ("precio", "co2", "load", "pv", "irr")}
+        self.hist = {k: {} for k in ("precio", "co2", "load", "pv", "irr", "temp")}
+        # Història precarregada (últimes 72 h de cada bloc de train, just abans de cada setmana de test)
+        for k, d in (p.get("hist") or {}).items():
+            if k in self.hist:
+                self.hist[k].update({pd.Timestamp(ts): float(v) for ts, v in d.items()})
         self._mats = {}
+        self.lgb = {}
+        self.lgb_keys = ("precio", "co2")   # variables on fem servir LightGBM (validat amb src/cv_hard.py)
+        self.lgb_w = 0.5                     # pes de LightGBM en la mitjana amb la regressió lineal
+        if lgb is not None:
+            for k, s in (p.get("lgb") or {}).items():
+                self.lgb[k] = lgb.Booster(model_str=s)
 
     # ------------------------------------------------------------------ memòria
     def _remember(self, obs, t):
@@ -62,6 +79,8 @@ class BatteryAgent:
             self.hist["pv"][tp] = float(d["ultima_solar_kw"])
         if "irradiancia_wm2" in d and d["irradiancia_wm2"] is not None:
             self.hist["irr"][tp] = max(0.0, float(d["irradiancia_wm2"]))
+        if "temp_ambient_c" in d and d["temp_ambient_c"] is not None:
+            self.hist["temp"][tp] = float(d["temp_ambient_c"])
 
     # ------------------------------------------------------------------ prediccions
     def _p(self, key, ts):
@@ -74,9 +93,58 @@ class BatteryAgent:
         v = self.hist[key].get(ts)
         return None if v is None else v - self._p(key, ts)
 
+    def _feats(self, key, t, offset, hs):
+        """Matriu de features per al model LightGBM (una fila per hora vista endavant h).
+        La fa servir TAMBÉ src/train_forecast.py per entrenar -> mateixes features garantides.
+        Retorna (X, py): py = perfil típic, el model prediu la desviació respecte a py."""
+        hist = self.hist[key]
+        one = pd.Timedelta(hours=1)
+        t_last = t + offset * one
+        devs = [self._dev(key, t_last - k * one) for k in range(24)]
+        d0, d1, d2 = [(devs[k] if devs[k] is not None else np.nan) for k in range(3)]
+        dv = [d for d in devs if d is not None]
+        dm = float(np.mean(dv)) if dv else np.nan
+        irr = self.hist["irr"].get(t - one, np.nan)
+        irr_p = self._p("irr", t - one)
+        clear = min(2.0, max(0.0, (irr + 1) / (irr_p + 1))) if irr == irr else np.nan
+        temp = self.hist["temp"].get(t - one, np.nan)
+        rows, pys = [], []
+        for h in hs:
+            ts = t + h * one
+            py = self._p(key, ts)
+            y1 = hist.get(ts - 24 * one, np.nan)
+            y2 = hist.get(ts - 48 * one, np.nan)
+            y7 = hist.get(ts - 168 * one, np.nan)
+            rows.append([h, ts.hour, ts.dayofweek, ts.month, py, y1 - py, y2 - py, y7 - py,
+                         d0, d1, d2, dm, t.hour, clear, irr, temp])
+            pys.append(py)
+        return np.asarray(rows, dtype=float), np.asarray(pys)
+
     def _forecast(self, key, t, offset, n_known):
-        """Retorna 24 valors (t..t+23). offset = posició del darrer valor observat respecte a t.
-        Features idèntiques a src/train_forecast.py::fit_var."""
+        """Retorna H valors (t..t+H-1). Mitjana ponderada LightGBM / regressió lineal."""
+        lin = self._forecast_lin(key, t, offset, n_known)
+        if key in self.lgb and key in self.lgb_keys and self.lgb_w > 0:
+            return self.lgb_w * self._forecast_lgb(key, t, offset, n_known) + (1 - self.lgb_w) * lin
+        return lin
+
+    def _forecast_lgb(self, key, t, offset, n_known):
+        hist = self.hist[key]
+        one = pd.Timedelta(hours=1)
+        out = np.empty(self.H)
+        todo = []
+        for h in range(self.H):
+            ts = t + h * one
+            if h < n_known and ts in hist:
+                out[h] = hist[ts]
+            else:
+                todo.append(h)
+        if todo:
+            X, py = self._feats(key, t, offset, todo)
+            X[:, 0] = np.minimum(X[:, 0], 23)
+            out[todo] = py + self.lgb[key].predict(X)
+        return np.maximum(out, 0.0)
+
+    def _forecast_lin(self, key, t, offset, n_known):
         hist = self.hist[key]
         one = pd.Timedelta(hours=1)
         t_last = t + offset * one
@@ -164,7 +232,8 @@ class BatteryAgent:
 
         # Marge: no descarreguem més que el consum net previst menys un marge (l'excés es perdria).
         if p < 0:
-            p = -min(-p, max(0.0, net[0] - self.discharge_margin))
+            margin = self.discharge_margin + self.margin_pv * pv[0]
+            p = -min(-p, max(0.0, net[0] - margin))
         return self._safe(p, soc, cap, pmax)
 
     @staticmethod
