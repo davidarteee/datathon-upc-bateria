@@ -17,12 +17,13 @@ A cada hora:
 """
 
 import json
+import time
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 from scipy.optimize import linprog
-from scipy.sparse import csr_matrix, hstack, identity, vstack
+from scipy.sparse import block_diag, csr_matrix, hstack, identity, vstack
 
 try:  # LightGBM és a la llista de llibreries permeses; si faltés, l'agent usa les regressions lineals
     import lightgbm as lgb
@@ -44,8 +45,16 @@ class BatteryAgent:
         self.H = 24                   # hores de planificació
         self.K = 0.2617               # (0,3/0,7)·CO2_base/Cost_base al train del Mode Difícil
         self.term_alpha = 0.0         # valor de l'energia que queda al final de l'horitzó
-        self.discharge_margin = 25.0  # kW de marge fix en descarregar (error de predicció del consum)
-        self.margin_pv = 0.4          # marge extra proporcional a la solar prevista (més incerta)
+        self.discharge_margin = 0.0   # kW de marge fix en descarregar (error de predicció del consum)
+        self.margin_pv = 0.0          # marge extra proporcional a la solar prevista (més incerta)
+        self.margin_q = None          # si es fixa (p.ex. "0.8"): marge = quantil d'error per hora del dia
+        self.pv_bias = 1.0            # multiplicador de la solar prevista per planificar (h >= 1)
+        self.net_err_q = p.get("net_err_q") or {}
+        # MPC estocàstic: planifiquem per a diversos futurs possibles (predicció + errors històrics)
+        self.n_scen = 12              # nombre d'escenaris d'error (0 = MPC determinista)
+        self.time_budget = 30.0       # s: si la simulació s'allarga, passem a MPC determinista (~4 ms/h)
+        self._t_used = 0.0
+        self.scen = p.get("scen") or []
         # Final de l'episodi: el test són els últims 7 dies de cada mes -> s'acaba a final de mes.
         # (src/evaluate.py el fixa al final de cada setmana local per simular-ho.)
         self.episode_end = None
@@ -200,8 +209,42 @@ class BatteryAgent:
             return 0.0
         return float(r.x[0] - r.x[n])
 
+    def _plan_stoch(self, soc, nets, ws, cap, pmax):
+        """LP estocàstic de dues etapes: una sola decisió per a l'hora actual (comuna a tots els
+        escenaris) i plans futurs propis per a cada escenari. Minimitza el cost esperat."""
+        S, n = ws.shape
+        scale = float(np.mean(ws)) if np.mean(ws) > 0 else 1.0
+        key = ("st", n, S)
+        if key not in self._mats:
+            A1 = self._matrices(n)
+            A_ub = block_diag([A1] * S, format="csr")
+            rows, cols, vals = [], [], []
+            r = 0
+            for s in range(1, S):
+                for off in (0, n):                      # c_0 i d_0 iguals en tots els escenaris
+                    rows += [r, r]; cols += [s * 3 * n + off, off]; vals += [1.0, -1.0]; r += 1
+            A_eq = csr_matrix((vals, (rows, cols)), shape=(max(r, 1), 3 * n * S))
+            self._mats[key] = (A_ub, A_eq, r)
+        A_ub, A_eq, r_eq = self._mats[key]
+        b_ub = np.concatenate([np.concatenate([np.full(n, cap - soc), np.full(n, soc), -nets[s]])
+                               for s in range(S)])
+        cost = np.concatenate([np.concatenate([np.zeros(2 * n), ws[s] / scale / S]) for s in range(S)])
+        bounds = ([(0, pmax)] * (2 * n) + [(0, None)] * n) * S
+        kw = dict(A_eq=A_eq, b_eq=np.zeros(A_eq.shape[0])) if r_eq else {}
+        res = linprog(cost, A_ub=A_ub, b_ub=b_ub, bounds=bounds, method="highs", **kw)
+        if res.status != 0:
+            return None
+        return float(res.x[0] - res.x[n])
+
     # ------------------------------------------------------------------ política
     def act(self, obs: dict) -> float:
+        t0 = time.perf_counter()
+        try:
+            return self._act(obs)
+        finally:
+            self._t_used += time.perf_counter() - t0
+
+    def _act(self, obs: dict) -> float:
         cap = float(obs.get("cap_max_kwh", 6000.0))
         pmax = float(obs.get("power_max_kw", 1500.0))
         soc = float(obs["soc_kwh"])
@@ -216,6 +259,8 @@ class BatteryAgent:
         co2 = self._forecast("co2", t, n_known - 1, n_known)
         load = self._forecast("load", t, -1, 0)
         pv = self._forecast("pv", t, -1, 0)
+        pv_plan = pv.copy()
+        pv_plan[1:] *= self.pv_bias
 
         # Horitzó: 24 h, però sense passar del final de mes (el test són els últims 7 dies de cada
         # mes) ni del final de dades (si la llista de preus ve curta, s'acaba l'episodi).
@@ -225,14 +270,32 @@ class BatteryAgent:
         if n_known < 3:
             n = min(n, n_known)
         w = co2[:n] + self.K * price[:n]
-        net = load[:n] - pv[:n]
+        net = load[:n] - pv_plan[:n]
         v_term = 0.0 if n < self.H else self.term_alpha * float(np.mean(w)) * ETA
 
-        p = self._plan(soc, net, w, cap, pmax, v_term)
+        p = None
+        stoch = self.n_scen and len(self.scen) == 24 and self._t_used < self.time_budget
+        paths = self.scen[t.hour][: self.n_scen] if stoch else []
+        if paths:
+            ws, nets = [w], [net]
+            for r in paths:
+                pr = np.maximum(price[:n] + np.asarray(r["precio"][:n]), 0)
+                cr = np.maximum(co2[:n] + np.asarray(r["co2"][:n]), 0)
+                lr = np.maximum(load[:n] + np.asarray(r["load"][:n]), 0)
+                vr = np.maximum(pv_plan[:n] + np.asarray(r["pv"][:n]), 0)
+                ws.append(cr + self.K * pr)
+                nets.append(lr - vr)
+            p = self._plan_stoch(soc, np.asarray(nets), np.asarray(ws), cap, pmax)
+        if p is None:
+            p = self._plan(soc, net, w, cap, pmax, v_term)
 
         # Marge: no descarreguem més que el consum net previst menys un marge (l'excés es perdria).
         if p < 0:
             margin = self.discharge_margin + self.margin_pv * pv[0]
+            if not paths:
+                margin = max(margin, 25.0 + 0.4 * pv[0])
+            if self.margin_q is not None and self.margin_q in self.net_err_q:
+                margin += self.net_err_q[self.margin_q][t.hour]
             p = -min(-p, max(0.0, net[0] - margin))
         return self._safe(p, soc, cap, pmax)
 

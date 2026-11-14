@@ -66,7 +66,7 @@ def fit_var(s: pd.Series, tab, first_lead, last_lead, last_obs_offset, extra=Non
     p = pd.Series(prof_at(tab, idx), index=idx)
     dev = (s - p)
     dm_all = dev.rolling(24, min_periods=1).mean()
-    coefs, maes = {}, {}
+    coefs, maes, preds = {}, {}, {}
     for h in range(first_lead + last_obs_offset, last_lead + last_obs_offset + 1):
         y = s.shift(-h)
         py = p.shift(-h)
@@ -84,10 +84,11 @@ def fit_var(s: pd.Series, tab, first_lead, last_lead, last_obs_offset, extra=Non
         X_, y_ = X[m].values, y[m].values
         r = Ridge(alpha=1.0).fit(X_, y_)
         pred = r.predict(X_)
+        preds[h] = pd.Series(pred, index=X[m].index)
         lead = h - last_obs_offset
         coefs[str(h)] = [float(r.intercept_)] + [float(c) for c in r.coef_]
         maes[lead] = (float(np.mean(np.abs(pred - y_))), float(np.mean(np.abs(py[m].values - y_))))
-    return coefs, maes
+    return coefs, maes, preds
 
 
 def fit_params(df: pd.DataFrame, verbose: bool = False) -> dict:
@@ -105,14 +106,16 @@ def fit_params(df: pd.DataFrame, verbose: bool = False) -> dict:
     params["profiles"] = {k: np.round(v, 6).tolist() for k, v in tabs.items()}
 
     report = {}
+    preds_all = {}
     # Preu i CO2: coneixem t, t+1, t+2 -> cal predir t+3..t+23
     for key, col in [("precio", "precio_eur_per_kwh"), ("co2", "co2_kg_per_kwh")]:
-        c, m = fit_var(full[col], tabs[key], 1, 21, 2)
+        c, m, pr = fit_var(full[col], tabs[key], 1, 21, 2)
+        preds_all[key] = pr
         params[f"coef_{key}"] = c
         report[key] = m
 
     # Consum: darrer observat t-1 -> predir t..t+23
-    c, m = fit_var(full["load_kw"], tabs["load"], 1, 24, -1)
+    c, m, pred_load = fit_var(full["load_kw"], tabs["load"], 1, 24, -1)
     params["coef_load"] = c
     report["load"] = m
 
@@ -123,9 +126,21 @@ def fit_params(df: pd.DataFrame, verbose: bool = False) -> dict:
     p_irr = pd.Series(prof_at(tabs["irr"], irr.index), index=irr.index)
     clear_last = ((irr.shift(1) + 1) / (p_irr.shift(1) + 1)).clip(0, 2).fillna(1.0)
     extra = [lambda h: (clear_last * p_pv.shift(-h))]
-    c, m = fit_var(pv, tabs["pv"], 1, 24, -1, extra=extra)
+    c, m, pred_pv = fit_var(pv, tabs["pv"], 1, 24, -1, extra=extra)
     params["coef_pv"] = c
     report["pv"] = m
+
+    preds_all["load"], preds_all["pv"] = pred_load, pred_pv
+    params["scen"] = residual_paths(full, preds_all)
+
+    # Error de la predicció del consum net de l'hora actual (h=0): quantils per hora del dia.
+    # L'agent no descarrega més que (consum net previst - quantil de sobreestimació), perquè
+    # l'energia descarregada per sobre del consum real es perd (exportació a 0 €).
+    net_hat = (pred_load[0] - pred_pv[0]).dropna()
+    net_true = (full["load_kw"] - full["pv_kw"]).reindex(net_hat.index)
+    err = (net_hat - net_true).dropna()
+    params["net_err_q"] = {str(q): [float(max(0.0, err[err.index.hour == h].quantile(q))) for h in range(24)]
+                           for q in (0.5, 0.6, 0.7, 0.8, 0.9, 0.95)}
 
     # Història inicial: les últimes 72 h de cada bloc de train. El test (últims 7 dies de cada mes)
     # comença just quan acaba cada bloc, així l'agent no comença "a cegues".
@@ -145,6 +160,34 @@ def fit_params(df: pd.DataFrame, verbose: bool = False) -> dict:
             show = [leads[0], leads[len(leads) // 2], leads[-1]]
             print(k, {l: f"model {m[l][0]:.4g} vs perfil {m[l][1]:.4g}" for l in show})
     return params
+
+
+def residual_paths(full: pd.DataFrame, preds_all: dict, per_hour: int = 12, seed: int = 0) -> list:
+    """Camins d'error històrics (real - predit) de les 4 variables, presos al MATEIX instant t
+    (així es conserva la correlació entre variables i entre hores). Per a cada hora del dia es
+    guarden `per_hour` camins de 24 h. L'agent els suma a la seva predicció per crear escenaris."""
+    cols = {"precio": "precio_eur_per_kwh", "co2": "co2_kg_per_kwh", "load": "load_kw", "pv": "pv_kw"}
+    R = {}
+    for key, pr in preds_all.items():
+        mat = {}
+        for h in range(24):
+            if h in pr:
+                truth = full[cols[key]].shift(-h).reindex(pr[h].index)
+                mat[h] = truth - pr[h]
+            else:
+                mat[h] = pd.Series(0.0, index=full.index)   # hores conegudes (preu/CO2 h<3)
+        R[key] = pd.DataFrame(mat).reindex(columns=range(24))
+    common = None
+    for df in R.values():
+        ok = df.dropna().index
+        common = ok if common is None else common.intersection(ok)
+    rng = np.random.default_rng(seed)
+    out = []
+    for hr in range(24):
+        idx = [t for t in common if t.hour == hr]
+        pick = rng.choice(len(idx), size=min(per_hour, len(idx)), replace=False) if idx else []
+        out.append([{k: np.round(R[k].loc[idx[i]].values, 5).tolist() for k in R} for i in pick])
+    return out
 
 
 LGB_PARAMS = dict(objective="regression", learning_rate=0.05, num_leaves=31, min_data_in_leaf=50,

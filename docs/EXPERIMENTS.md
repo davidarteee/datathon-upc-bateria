@@ -20,3 +20,6 @@ Si es puja al leaderboard, apunteu-hi també el score públic.
 | 9 | 14/11 | David | LightGBM (features = `BatteryAgent._feats`) per a tot / preu / CO2 / consum / solar | 20,96 / 21,42 / 21,44 / 21,18 / 21,12 (CV) | | | 0 | — | Només ajuda en preu i CO2. |
 | 10 | 14/11 | David | Mitjana 50/50 Ridge+LGB (preu, CO2) | 21,48 (CV) | | | 0 | — | lgb_w 0,7: 21,63 (soroll); ens quedem amb 0,5. |
 | 11 | 14/11 | David | Marge descàrrega 25 kW + 0,4·solar prevista | **21,61 (CV)** · 21,06 (42 setm.) | 19,82 | 23,94 | 0 | pendent | Marge 0: 21,31; 100 fix: 21,16. K 0,20/0,33: ±0,03 (indiferent). |
+| 12 | 14/11 | David | Diagnosi CV vs oracle | — | | | | — | Llencem 24,7 MWh (15,7 de sol perdut a migdia + 9,0 per descarregar més del consum); l'oracle en llença 0,5. |
+| 13 | 14/11 | David | CV ampliada a 20 setmanes; v4 / biaix solar 1,3 / quantil marge 0,9 | 19,84 / 19,89 / 19,86 | | | 0 | — | Oracle CV20 = 21,72. Retocs del determinista ≈ soroll. |
+| 14 | 14/11 | David | **v5 MPC estocàstic** 4 / 8 / 12 escenaris d'error històric | 19,92 / 20,00 / **20,04** | 18,69 | 23,20 | 0 | pendent | 16 s/1.008 h. Fallback determinista si >30 s. |

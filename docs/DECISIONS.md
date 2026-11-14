@@ -32,3 +32,7 @@ Registre de decisions tècniques i el seu perquè (servirà per a la presentaci�
 
 ## D8 — LightGBM només per a preu/CO2, en mitjana amb Ridge (14/11)
 **Per què:** és on la CV mostra millora. La mitjana de dos models diferents redueix l'error. El model es desa com a text (`model_to_string`), per evitar incompatibilitats de versions de pickle al servidor.
+
+## D9 — MPC estocàstic amb escenaris d'errors històrics (14/11)
+**Decisió:** l'LP optimitza el cost esperat sobre 13 futurs (predicció + 12 camins d'error reals de la mateixa hora del dia), amb la decisió de l'hora actual comuna a tots.
+**Per què:** el determinista es creu la predicció i llença energia (descàrrega excessiva, bateria plena abans del pic solar). Amb escenaris l'agent veu el risc i es cobreix sol, sense marges ajustats a mà. +0,2 a la CV. És un argument fort per al jurat: optimització sota incertesa.

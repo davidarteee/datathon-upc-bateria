@@ -23,11 +23,16 @@ import train_forecast  # noqa: E402
 DF = to_hard(load_hourly())
 
 
+WEEKS = 2   # setmanes de test per bloc (les últimes de cada mes) -> ~22 setmanes en total
+
+
 def folds(min_block=168 + 72):
+    """Retorna (train, [setmanes de test]) per a cada bloc mensual del train."""
     for b in split_weeks(DF):
-        if len(b) >= min_block:
-            test = b.iloc[-168:]
-            yield DF.drop(test.index), test
+        n = min(WEEKS, (len(b) - 72) // 168)
+        if n >= 1:
+            test = b.iloc[-168 * n:]
+            yield DF.drop(test.index), [test.iloc[i * 168:(i + 1) * 168] for i in range(n)]
 
 
 _CACHE = {}
@@ -42,10 +47,11 @@ def cv(agent_path=ROOT / "submission_hard" / "agent.py", fit=None, verbose=True,
         if ck not in _CACHE:
             _CACHE[ck] = fit(train)
         params = _CACHE[ck]
-        a = Agent(params=params)
-        for k, v in kw.items():
-            setattr(a, k, v)
-        envs.append(run(a, test, hard=True))
+        for wk in test:
+            a = Agent(params=params)
+            for k, v in kw.items():
+                setattr(a, k, v)
+            envs.append(run(a, wk, hard=True))
     r = aggregate(envs)
     if verbose:
         print(f"CV ({len(envs)} setmanes) {kw}: score={r['score_sense_penal']:.3f} "
@@ -64,7 +70,7 @@ def oracle_cv():
     """Cota superior sobre les mateixes setmanes de la CV."""
     import numpy as np
     from oracle import solve_lp
-    tests = [t for _, t in folds()]
+    tests = [w for _, t in folds() for w in t]
     base = [np.maximum(c.load_kw.values - c.pv_kw.values, 0) for c in tests]
     co2_b = sum((b * c.co2_kg_per_kwh.values).sum() for b, c in zip(base, tests))
     cost_b = sum((b * c.precio_eur_per_kwh.values).sum() for b, c in zip(base, tests))

@@ -118,6 +118,25 @@ Avaluat amb `python src/evaluate.py <agent.py>` sobre el train, en trossos d'1 s
 
 On queda el marge a la CV: preu+CO₂ perfectes **+1,0**, consum+solar perfectes **+0,65**.
 
+### hard v5 — MPC estocàstic (planificar per a diversos futurs)
+
+**Diagnosi** (CV vs oracle): l'agent llençava **24,7 MWh** d'energia: 15,7 MWh de sol que es perdia a migdia perquè la bateria ja era plena, i 9,0 MWh per descarregar més del consum real. L'oracle només en llença 0,5. El problema de fons és que l'MPC determinista es creu la predicció.
+
+**Solució:** a cada hora l'LP planifica alhora per a **13 futurs**: la predicció i 12 escenaris, que són la predicció més errors reals que van cometre els models en el passat a la mateixa hora del dia (camins de 24 h de les 4 variables, presos al mateix instant per conservar la correlació). La decisió d'aquesta hora és **única** i ha de funcionar bé en tots; el pla futur de cada escenari és lliure. Això substitueix els marges "a mà". Si la simulació supera 30 s, l'agent passa automàticament al mode determinista (v4) i mai falla el límit de 60 s.
+
+CV ampliada a **20 setmanes** (les 2 últimes de cada mes):
+
+| CV (20 setmanes) | Score |
+|---|---|
+| Oracle | 21,72 |
+| v4 determinista | 19,84 |
+| v4 + biaix solar / marges per quantils | 19,86–19,89 |
+| Estocàstic 4 escenaris | 19,92 |
+| Estocàstic 8 escenaris | 19,98–20,00 |
+| **Estocàstic 12 escenaris, sense marges (v5)** | **20,04** |
+
+Temps: 16 s per a 1.008 h (test públic).
+
 **On és el marge que queda** (punts que guanyaríem amb cada predicció perfecta, sobre la v2): preu + CO₂ **+0,78**, consum + solar **+0,56**, totes **+1,34**. És a dir: **millorar les prediccions és la feina que falta** (Cesc 👀).
 
 **Lliurar:** `python src/make_zip.py` → puja `submission_hard.zip` (agent.py + params.json) a la pestanya *Mode Difícil*.
