@@ -55,6 +55,19 @@ def build_hourly(train_dir: Path = None) -> pd.DataFrame:
         "precio_eur_per_kwh": pvpc["precio_eur_per_kwh"],
         "co2_kg_per_kwh": co2["co2_kg_per_kwh"],
     }).dropna()
+
+    # Meteo (Mode Difícil): s'afegeix sense eliminar hores (buits -> interpolació / 0 de nit)
+    met = pd.read_csv(d / "meteo.csv", parse_dates=["Fecha"], low_memory=False).set_index("Fecha")
+    met_cols = {
+        "irradiancia_wm2": "Atersa - IRRADIANCIA (W/m2)",
+        "temp_ambient_c": "Atersa - TEMPERATURA AMBIENTE (SENSOR 1) (ºC)",
+        "temp_panel_c": "Atersa - TEMPERATURA PANEL (SENSOR 1) (ºC)",
+        "vent_ms": "Atersa - VELOCIDAD VIENTO (SENSOR 1) (m/s)",
+    }
+    met_h = pd.DataFrame({k: pd.to_numeric(met[v], errors="coerce") for k, v in met_cols.items()}).resample("1h").mean()
+    met_h["irradiancia_wm2"] = met_h["irradiancia_wm2"].clip(lower=0)
+    df = df.join(met_h, how="left")
+    df[list(met_cols)] = df[list(met_cols)].interpolate(limit_direction="both")
     df.index.name = "Fecha"
     return df
 

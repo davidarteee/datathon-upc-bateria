@@ -12,6 +12,7 @@ sobre la xarxa és exactament P_t. L'objectiu oficial es pot escriure com
 """
 
 import numpy as np
+import pandas as pd
 from scipy.optimize import linprog
 
 CAP = 2000.0
@@ -27,6 +28,9 @@ class BatteryAgent:
         # Valor terminal de l'energia que queda a l'acabar l'horitzó (fracció d'un quantil de w)
         self.term_q = 0.5
         self.term_alpha = 1.0
+        # Final de l'episodi: el test són els últims 7 dies de cada mes -> s'acaba a final de mes.
+        # (src/evaluate.py el fixa al final de cada setmana local per simular-ho.)
+        self.episode_end = None
         self._mats = {}
 
     # ---------- LP ----------
@@ -62,6 +66,13 @@ class BatteryAgent:
             prices = np.array([obs["preu_actual"]])
             co2 = np.array([obs["co2_actual"]])
             H = 1
+        # No planifiquem més enllà del final de l'episodi (final de mes): l'energia que hi quedi no puntua.
+        try:
+            t = pd.Timestamp(obs["timestamp"]).floor("h")
+            end = self.episode_end if self.episode_end is not None else (t + pd.offsets.MonthBegin(1)).normalize()
+            H = max(1, min(H, int((end - t) / pd.Timedelta(hours=1))))
+        except Exception:
+            pass
         w = co2[:H] + self.K * prices[:H]
 
         # Si l'horitzó és curt, s'acaba el període d'avaluació: l'energia restant no val res.

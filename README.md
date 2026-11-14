@@ -79,6 +79,33 @@ Avaluat amb `python src/evaluate.py <agent.py>` sobre el train, en trossos d'1 s
 4. La descàrrega es limita al consum net de l'última hora (exportar no es paga).
 5. Hi ha un clamping final amb el η exacte i un marge de 1e-6, de manera que és impossible fer infraccions.
 
+**Leaderboard web (Mode Estàndard):** v1 = **6,43 pts**, 0 infraccions (14/11). El primer en té 6,44: tots els equips bons estan tocant el sostre.
+
+**Novetat (14/11 tarda):** l'agent ara sap quan s'acaba l'episodi (final de mes, perquè el test són els últims 7 dies de cada mes) i no planifica més enllà. Al Mode Difícil val +0,7 punts; a l'Estàndard pot ser el que ens falta si la web no talla la llista de preus a final de setmana.
+
+---
+
+## 3b. 🔥 Mode Difícil (rànquing separat)
+
+**Què canvia:** bateria **6.000 kWh / ±1.500 kW**, solar **×12** (a migdia sobra energia gratis i neta que, si no es guarda, es perd), i `obs` només dona **3 hores** de preu i CO₂, no 24. A més, `noves_dades_5min` inclou la meteo de l'hora anterior (irradiància, temperatures, vent). Té quota pròpia: 10 intents fins dissabte a les 21 h, 10 fins diumenge a les 8 h i 10 diumenge.
+
+**La nostra solució** ([submission_hard/](submission_hard/)): el mateix MPC-LP, amb tres canvis:
+1. **Prediccions** de les 24 h ([src/train_forecast.py](src/train_forecast.py) → `params.json`): preu i CO₂ de l'hora 4 a la 24, i consum i solar de totes. Per a cada variable i cada hora vista endavant es fa una regressió lineal (Ridge) amb aquestes dades: perfil típic (mes × laborable/festiu × hora), valor d'ahir i d'abans-d'ahir, desviació de les últimes hores i, per a la solar, claredat (irradiància observada / típica).
+2. **LP amb excedents:** `importació_t ≥ consum_t − solar_t + P_t`, `importació_t ≥ 0`. El model sap que el sol que sobra és gratis i que descarregar més del consum es perd.
+3. **Final d'episodi** (final de mes) i un **marge de 50 kW** en descarregar, per l'error de predicció del consum.
+
+| Versió (train, per setmanes) | Score | ΔCO₂ | ΔCost | Infr. |
+|---|---|---|---|---|
+| Oracle (informació perfecta de tota la setmana) | 22,57 | 21,39 % | 25,31 % | 0 |
+| MPC amb prediccions perfectes (sense saber el final) | 21,78 | | | 0 |
+| hard v1 (prediccions simples) | 19,93 | 18,61 % | 23,00 % | 0 |
+| hard v2 (més features + marge 50 kW) | 20,01 | 18,75 % | 22,94 % | 0 |
+| **hard v3 (+ final d'episodi)** | **20,67** | 19,38 % | 23,67 % | **0** |
+
+**On és el marge que queda** (punts que guanyaríem amb cada predicció perfecta, sobre la v2): preu + CO₂ **+0,78**, consum + solar **+0,56**, totes **+1,34**. És a dir: **millorar les prediccions és la feina que falta** (Cesc 👀).
+
+**Lliurar:** `python src/make_zip.py` → puja `submission_hard.zip` (agent.py + params.json) a la pestanya *Mode Difícil*.
+
 ---
 
 ## 4. Pla de treball
@@ -88,7 +115,11 @@ Avaluat amb `python src/evaluate.py <agent.py>` sobre el train, en trossos d'1 s
 - [x] **Oracle LP amb informació perfecta** → 6,265 (cota superior al train)
 - [x] **Agent v1: MPC-LP** amb horitzó 24 h i senyal combinat `w_t` → 6,257, 0 infraccions
 - [x] Sensibilitat de `K` i del valor terminal del SOC
-- [ ] Validació web (dry-run) i primer lliurament al leaderboard: comprovar que el score web quadra amb el local
+- [x] Primer lliurament web (Estàndard): 6,43 pts, 0 infraccions
+- [ ] Pujar la v1 + final d'episodi a l'Estàndard i veure si arriba a 6,44
+- [x] Mode Difícil: simulador local, oracle, prediccions i agent hard v3 (20,67 al train)
+- [ ] Pujar `submission_hard.zip` al Mode Difícil
+- [ ] Millorar les prediccions de preu/CO₂ (+0,78 possible) i de consum/solar (+0,56 possible)
 - [ ] Verificar a la web si el test reinicia la bateria per setmana o és una sola simulació
 - [ ] Robustesa: casos límit (consum < 500 kW, buits de dades, llistes de 24 h incompletes)
 - [ ] Dashboard Premi Tukey (decisions hora a hora, comparativa vs base, sensibilitat)
@@ -108,7 +139,12 @@ Avaluat amb `python src/evaluate.py <agent.py>` sobre el train, en trossos d'1 s
 ├── src/
 │   ├── data.py        # Extreu el zip i construeix la taula horària (mateix preprocessament que el tutorial)
 │   ├── evaluate.py    # Avaluació local: tot el train + per setmanes (com el test)
-│   └── oracle.py      # Cota superior: LP amb informació perfecta de tota la setmana
+│   ├── oracle.py      # Cota superior: LP amb informació perfecta (--hard per al Mode Difícil)
+│   ├── hard_env.py    # Simulador local del Mode Difícil
+│   ├── train_forecast.py  # Entrena les prediccions -> submission_hard/params.json
+│   ├── tune_hard.py   # Diagnòstic (quant perdem per cada predicció) i ajust de paràmetres
+│   └── make_zip.py    # Crea submission_hard.zip
+├── submission_hard/   # Agent del Mode Difícil (agent.py + params.json)
 ├── submission/        # El NOSTRE agent.py (i .pkl/.json si en calen) → el que es puja a la web
 ├── notebooks/         # EDA i experiments
 └── docs/              # EXPERIMENTS.md (resultats) i DECISIONS.md (per què fem cada cosa)

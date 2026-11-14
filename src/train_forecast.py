@@ -1,0 +1,140 @@
+"""
+src/train_forecast.py
+Entrena els models de predicció del Mode Difícil i els desa a submission_hard/params.json
+(només números: l'agent els llegeix amb json, sense pickle).
+
+Per a cada variable i cada horitzó ("lead") ajustem una regressió lineal (Ridge) amb features
+que l'agent pot calcular en temps real a partir del que ha vist:
+  - perfil típic (mes × [laborable/cap de setmana] × hora) del valor a predir
+  - valor d'ahir a la mateixa hora
+  - darrer valor observat, expressat com a desviació respecte al seu perfil
+  - (solar) irradiància de la darrera hora i índex de claredat
+
+Ús:
+    python src/train_forecast.py
+"""
+
+import json
+import sys
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+from sklearn.linear_model import Ridge
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+from data import load_hourly  # noqa: E402
+from hard_env import to_hard  # noqa: E402
+
+OUT = ROOT / "submission_hard" / "params.json"
+H = 24
+
+
+def daytype(idx):
+    return (idx.dayofweek >= 5).astype(int)          # 0 laborable, 1 cap de setmana
+
+
+def profile(s: pd.Series, by_daytype: bool):
+    """Taula [12 mesos][2 tipus de dia][24 h] (mitjana). Buits -> perfil mensual/global."""
+    df = pd.DataFrame({"v": s, "m": s.index.month - 1, "d": daytype(s.index) if by_daytype else 0,
+                       "h": s.index.hour})
+    tab = np.full((12, 2, 24), np.nan)
+    for (m, d, h), v in df.groupby(["m", "d", "h"])["v"].mean().items():
+        tab[m, d, h] = v
+        if not by_daytype:
+            tab[m, 1, h] = v
+    glob = df.groupby("h")["v"].mean().reindex(range(24)).values
+    for m in range(12):
+        for d in range(2):
+            row = tab[m, d]
+            row[np.isnan(row)] = glob[np.isnan(row)]
+    return tab
+
+
+def prof_at(tab, idx):
+    return tab[idx.month - 1, daytype(idx), idx.hour]
+
+
+def fit_var(s: pd.Series, tab, first_lead, last_lead, last_obs_offset, extra=None):
+    """s: sèrie horària (índex continu, NaN als buits).
+    last_obs_offset: posició del darrer valor observat respecte a t (preu/CO2: +2, consum/solar: -1).
+    Features per a target ts = t+h (mateixes que calcula l'agent, vegeu BatteryAgent._features):
+      py  perfil(ts) | y1 valor(ts-24) | y2 valor(ts-48) | d0, d1 desviació dels 2 darrers observats
+      dm  desviació mitjana de les darreres 24 h observades | (solar) claredat · py"""
+    idx = s.index
+    p = pd.Series(prof_at(tab, idx), index=idx)
+    dev = (s - p)
+    dm_all = dev.rolling(24, min_periods=1).mean()
+    coefs, maes = {}, {}
+    for h in range(first_lead + last_obs_offset, last_lead + last_obs_offset + 1):
+        y = s.shift(-h)
+        py = p.shift(-h)
+        y1 = s.shift(-(h - 24)).fillna(py)
+        y2 = s.shift(-(h - 48)).fillna(py)
+        d0 = dev.shift(-last_obs_offset).fillna(0)
+        d1 = dev.shift(-(last_obs_offset - 1)).fillna(0)
+        dm = dm_all.shift(-last_obs_offset).fillna(0)
+        cols = [py, y1, y2, d0, d1, dm]
+        if extra is not None:
+            for e in extra:
+                cols.append(e(h))
+        X = pd.concat(cols, axis=1)
+        m = y.notna() & X.notna().all(axis=1)
+        X_, y_ = X[m].values, y[m].values
+        r = Ridge(alpha=1.0).fit(X_, y_)
+        pred = r.predict(X_)
+        lead = h - last_obs_offset
+        coefs[str(h)] = [float(r.intercept_)] + [float(c) for c in r.coef_]
+        maes[lead] = (float(np.mean(np.abs(pred - y_))), float(np.mean(np.abs(py[m].values - y_))))
+    return coefs, maes
+
+
+def main():
+    df = to_hard(load_hourly())
+    full = df.reindex(pd.date_range(df.index.min(), df.index.max(), freq="1h"))
+
+    params = {"pv_scale": 12.0}
+    tabs = {
+        "precio": profile(df["precio_eur_per_kwh"], by_daytype=True),
+        "co2": profile(df["co2_kg_per_kwh"], by_daytype=True),
+        "load": profile(df["load_kw"], by_daytype=True),
+        "pv": profile(df["pv_kw"], by_daytype=False),
+        "irr": profile(df["irradiancia_wm2"], by_daytype=False),
+    }
+    params["profiles"] = {k: np.round(v, 6).tolist() for k, v in tabs.items()}
+
+    report = {}
+    # Preu i CO2: coneixem t, t+1, t+2 -> cal predir t+3..t+23
+    for key, col in [("precio", "precio_eur_per_kwh"), ("co2", "co2_kg_per_kwh")]:
+        c, m = fit_var(full[col], tabs[key], 1, 21, 2)
+        params[f"coef_{key}"] = c
+        report[key] = m
+
+    # Consum: darrer observat t-1 -> predir t..t+23
+    c, m = fit_var(full["load_kw"], tabs["load"], 1, 24, -1)
+    params["coef_load"] = c
+    report["load"] = m
+
+    # Solar: + claredat de la darrera hora (pv observat / pv típic) escalada al perfil del target
+    pv = full["pv_kw"]
+    p_pv = pd.Series(prof_at(tabs["pv"], pv.index), index=pv.index)
+    irr = full["irradiancia_wm2"]
+    p_irr = pd.Series(prof_at(tabs["irr"], irr.index), index=irr.index)
+    clear_last = ((irr.shift(1) + 1) / (p_irr.shift(1) + 1)).clip(0, 2).fillna(1.0)
+    extra = [lambda h: (clear_last * p_pv.shift(-h))]
+    c, m = fit_var(pv, tabs["pv"], 1, 24, -1, extra=extra)
+    params["coef_pv"] = c
+    report["pv"] = m
+
+    OUT.parent.mkdir(parents=True, exist_ok=True)
+    OUT.write_text(json.dumps(params), encoding="utf-8")
+    print(f"Desat {OUT} ({OUT.stat().st_size/1024:.0f} KB)")
+    for k, m in report.items():
+        leads = sorted(m)
+        show = [leads[0], leads[len(leads) // 2], leads[-1]]
+        print(k, {l: f"model {m[l][0]:.4g} vs perfil {m[l][1]:.4g}" for l in show})
+
+
+if __name__ == "__main__":
+    main()

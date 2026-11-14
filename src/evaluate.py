@@ -5,6 +5,7 @@ Avalua un agent sobre les dades de train amb el simulador oficial (starter_kit/e
 Ús:
     python src/evaluate.py                          # avalua submission/agent.py
     python src/evaluate.py starter_kit/agent.py     # avalua qualsevol agent.py
+    python src/evaluate.py --hard                   # Mode Difícil: avalua submission_hard/agent.py
 
 Dos modes:
   - "complet": tot el train seguit (una sola simulació).
@@ -26,6 +27,10 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from environment import CampusBatteryEnv  # noqa: E402
 from data import load_hourly, split_weeks  # noqa: E402
+from hard_env import HardBatteryEnv, to_hard  # noqa: E402
+
+
+END_KNOWN = True
 
 
 def load_agent_class(path: Path):
@@ -36,8 +41,11 @@ def load_agent_class(path: Path):
     return mod.BatteryAgent
 
 
-def run(agent, df: pd.DataFrame) -> CampusBatteryEnv:
-    env = CampusBatteryEnv(df)
+def run(agent, df: pd.DataFrame, hard: bool = False) -> CampusBatteryEnv:
+    env = HardBatteryEnv(df) if hard else CampusBatteryEnv(df)
+    if hasattr(agent, "episode_end") and END_KNOWN:
+        # Al test real cada setmana acaba a final de mes; aquí simulem que l'agent sap on acaba.
+        agent.episode_end = pd.Timestamp(df.index[-1]) + pd.Timedelta(hours=1)
     obs = env.reset()
     done = False
     while not done:
@@ -70,20 +78,24 @@ def aggregate(envs):
     }
 
 
-def evaluate(agent_path: Path, week_hours: int = 168):
+def week_chunks(df, week_hours=168):
+    return [b.iloc[i:i + week_hours] for b in split_weeks(df)
+            for i in range(0, len(b) - 24 + 1, week_hours)]
+
+
+def evaluate(agent_path: Path, week_hours: int = 168, hard: bool = False):
     AgentCls = load_agent_class(agent_path)
     df = load_hourly()
+    if hard:
+        df = to_hard(df)
 
     t0 = time.time()
-    full = aggregate([run(AgentCls(), df)])
+    full = aggregate([run(AgentCls(), df, hard)])
     t_full = time.time() - t0
 
-    chunks = []
-    for block in split_weeks(df):
-        for i in range(0, len(block) - 24 + 1, week_hours):
-            chunks.append(block.iloc[i:i + week_hours])
+    chunks = week_chunks(df, week_hours)
     t0 = time.time()
-    weekly = aggregate([run(AgentCls(), c) for c in chunks])
+    weekly = aggregate([run(AgentCls(), c, hard) for c in chunks])
     t_week = time.time() - t0
 
     print(f"\n=== {agent_path} ===")
@@ -93,5 +105,8 @@ def evaluate(agent_path: Path, week_hours: int = 168):
 
 
 if __name__ == "__main__":
-    target = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "submission" / "agent.py"
-    evaluate(target.resolve())
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    hard = "--hard" in sys.argv
+    default = ROOT / "submission_hard" / "agent.py" if hard else ROOT / "submission" / "agent.py"
+    target = Path(args[0]) if args else default
+    evaluate(target.resolve(), hard=hard)
