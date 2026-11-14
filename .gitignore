@@ -1,0 +1,21 @@
+# Dades extretes / generades (es regeneren amb `python src/data.py`)
+data/train/
+data/processed/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Lliuraments generats
+submission.zip
+*.zip
+!data/raw/*.zip
+
+# Sistema / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
