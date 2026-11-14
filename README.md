@@ -64,7 +64,20 @@ Avaluat amb `python src/evaluate.py <agent.py>` sobre el train, en trossos d'1 s
 | Versió | Score (sense penal.) | ΔCO₂ % | ΔCost % | Infraccions | Score oficial (−1/infr.) |
 |---|---|---|---|---|---|
 | Plantilla oficial (heurística) | 1,76 | 1,33 | 2,77 | 8 | **0** |
-| _v1 MPC-LP_ | _pendent_ | | | | |
+| **v1 MPC-LP** ([submission/agent.py](submission/agent.py)) | **6,257** | 5,84 | 7,24 | **0** | **6,257** |
+| _Oracle (informació perfecta, cota superior)_ | _6,265_ | _5,85_ | _7,24_ | _0_ | — |
+
+**La v1 assoleix el 99,9 % del màxim teòric** amb 0 infraccions i ~4 ms per hora (~8 s per a tot el test; el límit és 60 s).
+
+**Sensibilitat (v1):** el valor terminal del SOC no canvia res (l'horitzó de 24 h ja captura el cicle diari). El pes del preu `K` és l'únic paràmetre que importa, i és robust: si el multipliquem o el dividim per 2, el score només baixa ~0,07; amb `K = 0` (optimitzar només CO₂) cau a 5,74.
+
+### Com funciona la v1
+
+1. Cada hora es combina CO₂ i preu en un pes per kWh: `w_t = co2_t + K·preu_t`, amb `K = (0,3/0,7)·(CO₂_base/Cost_base) ≈ 0,252`. Aquest `K` s'estima al train (CO₂_base/Cost_base = 0,587 kg/€).
+2. Es resol un LP sobre les properes 24 h (variables: càrrega i descàrrega de cada hora; restriccions: SOC a [0, 2.000], potència ≤ 500 kW, rendiment de 90 %) que minimitza `Σ w_t·P_t`.
+3. S'aplica només la primera hora (MPC) i es torna a planificar a l'hora següent amb la informació nova.
+4. La descàrrega es limita al consum net de l'última hora (exportar no es paga).
+5. Hi ha un clamping final amb el η exacte i un marge de 1e-6, de manera que és impossible fer infraccions.
 
 ---
 
@@ -72,11 +85,12 @@ Avaluat amb `python src/evaluate.py <agent.py>` sobre el train, en trossos d'1 s
 
 - [x] Llegir enunciat, starter kit i dades; muntar el repo
 - [x] Pipeline de dades horàries + avaluador local per setmanes
-- [ ] **Oracle LP amb informació perfecta** (cota superior: el màxim score assolible al train)
-- [ ] **Agent v1: MPC-LP** amb horitzó 24 h i senyal combinat `w_t`, clamping segur → 0 infraccions
-- [ ] Ajust de pesos `CO₂_base`/`Cost_base` i valor terminal del SOC
-- [ ] Gestionar els casos límit (consum < 500 kW, buits de dades) amb predicció de consum si cal
-- [ ] Validació web (dry-run) i primers lliuraments al leaderboard
+- [x] **Oracle LP amb informació perfecta** → 6,265 (cota superior al train)
+- [x] **Agent v1: MPC-LP** amb horitzó 24 h i senyal combinat `w_t` → 6,257, 0 infraccions
+- [x] Sensibilitat de `K` i del valor terminal del SOC
+- [ ] Validació web (dry-run) i primer lliurament al leaderboard: comprovar que el score web quadra amb el local
+- [ ] Verificar a la web si el test reinicia la bateria per setmana o és una sola simulació
+- [ ] Robustesa: casos límit (consum < 500 kW, buits de dades, llistes de 24 h incompletes)
 - [ ] Dashboard Premi Tukey (decisions hora a hora, comparativa vs base, sensibilitat)
 - [ ] Presentació final (repartiment entre els 4)
 
@@ -93,7 +107,8 @@ Avaluat amb `python src/evaluate.py <agent.py>` sobre el train, en trossos d'1 s
 │   └── processed/     # (ignorat per git) hourly.csv generat
 ├── src/
 │   ├── data.py        # Extreu el zip i construeix la taula horària (mateix preprocessament que el tutorial)
-│   └── evaluate.py    # Avaluació local: tot el train + per setmanes (com el test)
+│   ├── evaluate.py    # Avaluació local: tot el train + per setmanes (com el test)
+│   └── oracle.py      # Cota superior: LP amb informació perfecta de tota la setmana
 ├── submission/        # El NOSTRE agent.py (i .pkl/.json si en calen) → el que es puja a la web
 ├── notebooks/         # EDA i experiments
 └── docs/              # EXPERIMENTS.md (resultats) i DECISIONS.md (per què fem cada cosa)

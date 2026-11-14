@@ -13,3 +13,7 @@ Registre de decisions tècniques i el seu perquè (servirà per a la presentaci�
 ## D3 — Dades al repo via zip oficial (14/11)
 **Decisió:** es versiona només `data/raw/paquet_participants_datathon_upc.zip` (14 MB); els CSV (~90 MB, `inversor.csv` 62 MB) s'extreuen amb `python src/data.py`.
 **Per què:** evitar fitxers > 50 MB a GitHub i garantir que tots treballem amb les mateixes dades.
+
+## D4 — v1 = MPC-LP, sense ML (14/11)
+**Decisió:** lliurar el MPC-LP de 24 h com a solució base.
+**Per què:** arriba a 6,257 sobre un màxim teòric de 6,265 (99,9 %). El marge que queda per a models de predicció és ~0,01 punts al train. A partir d'ara el focus és **robustesa** (que no falli ni faci infraccions al test ocult), validar contra la web i preparar la presentació i el dashboard Tukey.
