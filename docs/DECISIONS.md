@@ -36,3 +36,7 @@ Registre de decisions tècniques i el seu perquè (servirà per a la presentaci�
 ## D9 — MPC estocàstic amb escenaris d'errors històrics (14/11)
 **Decisió:** l'LP optimitza el cost esperat sobre 13 futurs (predicció + 12 camins d'error reals de la mateixa hora del dia), amb la decisió de l'hora actual comuna a tots.
 **Per què:** el determinista es creu la predicció i llença energia (descàrrega excessiva, bateria plena abans del pic solar). Amb escenaris l'agent veu el risc i es cobreix sol, sense marges ajustats a mà. +0,2 a la CV. És un argument fort per al jurat: optimització sota incertesa.
+
+## D10 — Autocorrecció online de les prediccions (14/11)
+**Decisió:** l'agent desa les seves prediccions i resta el 70 % de l'error mitjà per horitzó de les darreres 24 h.
+**Per què:** el test són els últims 7 dies de cada mes (la Mercè, Nadal, el tancament d'agost...), que són setmanes atípiques i no surten al train. Els models basats en perfils típics s'hi equivoquen de manera sistemàtica. En el test d'estrès amb consum ×0,65 val +0,44, i en setmanes normals no fa mal (+0,03).

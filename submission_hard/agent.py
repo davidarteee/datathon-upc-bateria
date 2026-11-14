@@ -55,6 +55,11 @@ class BatteryAgent:
         self.time_budget = 30.0       # s: si la simulació s'allarga, passem a MPC determinista (~4 ms/h)
         self._t_used = 0.0
         self.scen = p.get("scen") or []
+        # Autocorrecció: l'agent guarda les seves prediccions i, quan veu que s'equivoca de manera
+        # sistemàtica (festius, campus tancat, onades de calor...), corregeix les següents.
+        self.bias_k = {"load": 0.7, "pv": 0.7, "precio": 0.7, "co2": 0.7}
+        self.bias_window = 24
+        self._fc = {k: {} for k in ("load", "pv", "precio", "co2")}
         # Final de l'episodi: el test són els últims 7 dies de cada mes -> s'acaba a final de mes.
         # (src/evaluate.py el fixa al final de cada setmana local per simular-ho.)
         self.episode_end = None
@@ -184,6 +189,40 @@ class BatteryAgent:
             out[h] = c[0] + float(np.dot(c[1:], x))
         return np.maximum(out, 0.0)
 
+    def _bias_correct(self, key, t, fc, last_known):
+        """Resta a la predicció l'error mitjà per horitzó comès en les darreres hores.
+        last_known: darrer instant amb valor real conegut (consum/solar: t-1; preu/CO2: t+2)."""
+        k = self.bias_k.get(key, 0.0)
+        store = self._fc[key]
+        if k > 0:
+            one = pd.Timedelta(hours=1)
+            hist = self.hist[key]
+            err_sum = np.zeros(len(fc))
+            err_n = np.zeros(len(fc))
+            for back in range(1, self.bias_window + 1):
+                tm = t - back * one
+                f = store.get(tm)
+                if f is None:
+                    continue
+                for h in range(min(len(f), len(fc))):
+                    ts = tm + h * one
+                    if ts > last_known:
+                        break
+                    v = hist.get(ts)
+                    if v is not None:
+                        err_sum[h] += f[h] - v
+                        err_n[h] += 1
+            # error per horitzó (hores sense dades: usem l'error mitjà de les que en tenen)
+            ok = err_n > 0
+            if ok.any():
+                bias = np.where(ok, err_sum / np.maximum(err_n, 1), (err_sum[ok] / err_n[ok]).mean())
+                fc = fc - k * bias
+        store[t] = fc.copy()
+        old = t - (self.bias_window + 25) * pd.Timedelta(hours=1)
+        if old in store:
+            del store[old]
+        return np.maximum(fc, 0.0)
+
     # ------------------------------------------------------------------ LP
     def _matrices(self, n):
         if n not in self._mats:
@@ -249,16 +288,23 @@ class BatteryAgent:
         pmax = float(obs.get("power_max_kw", 1500.0))
         soc = float(obs["soc_kwh"])
         try:
-            t = pd.Timestamp(obs["timestamp"]).floor("h")
+            t = pd.Timestamp(obs["timestamp"])
+            if t.tzinfo is not None:            # robustesa: treballem sempre amb hora local sense zona
+                t = t.tz_localize(None)
+            t = t.replace(minute=0, second=0, microsecond=0, nanosecond=0)
         except Exception:
             t = pd.Timestamp("2026-01-01") + pd.Timedelta(hours=len(self.hist["precio"]))
         self._remember(obs, t)
 
         n_known = max(1, len(obs.get("preus_properes_24h") or []))
+        one = pd.Timedelta(hours=1)
         price = self._forecast("precio", t, n_known - 1, n_known)
         co2 = self._forecast("co2", t, n_known - 1, n_known)
-        load = self._forecast("load", t, -1, 0)
-        pv = self._forecast("pv", t, -1, 0)
+        load = self._bias_correct("load", t, self._forecast("load", t, -1, 0), t - one)
+        pv = self._bias_correct("pv", t, self._forecast("pv", t, -1, 0), t - one)
+        kp = n_known
+        price[kp:] = self._bias_correct("precio", t, price, t + (n_known - 1) * one)[kp:]
+        co2[kp:] = self._bias_correct("co2", t, co2, t + (n_known - 1) * one)[kp:]
         pv_plan = pv.copy()
         pv_plan[1:] *= self.pv_bias
 

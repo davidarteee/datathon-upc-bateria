@@ -23,3 +23,7 @@ Si es puja al leaderboard, apunteu-hi també el score públic.
 | 12 | 14/11 | David | Diagnosi CV vs oracle | — | | | | — | Llencem 24,7 MWh (15,7 de sol perdut a migdia + 9,0 per descarregar més del consum); l'oracle en llença 0,5. |
 | 13 | 14/11 | David | CV ampliada a 20 setmanes; v4 / biaix solar 1,3 / quantil marge 0,9 | 19,84 / 19,89 / 19,86 | | | 0 | — | Oracle CV20 = 21,72. Retocs del determinista ≈ soroll. |
 | 14 | 14/11 | David | **v5 MPC estocàstic** 4 / 8 / 12 escenaris d'error històric | 19,92 / 20,00 / **20,04** | 18,69 | 23,20 | 0 | pendent | 16 s/1.008 h. Fallback determinista si >30 s. |
+| 15 | 14/11 | David | **v5 al leaderboard web (Mode Difícil)** | — | 17,86 | 22,40 | 0 | **19,22** | El primer en té 23,46. Gap molt més gran que a la CV (~92 % de l'oracle). |
+| 16 | 14/11 | David | Sensibilitat al format d'obs (sense meteo / timestamp string / amb zona horària / sense història) | 19,60 / 19,84 / 19,84 / 19,76 (CV det.) | | | 0 | — | Cap no explica el gap web. |
+| 17 | 14/11 | David | Test d'estrès "campus tancat" (consum ×0,65): oracle 35,59 | det 30,67 · estoc 31,57 · **estoc+autocorrecció 32,01** | | | 0 | — | Les setmanes de test (finals de mes: Mercè, Nadal, agost) són atípiques. |
+| 18 | 14/11 | David | **v6 = estocàstic 12 + autocorrecció 0,7 (les 4 variables)** | **20,07 (CV20)** | 18,82 | 22,99 | 0 | pendent | 18 s/1.008 h. |

@@ -137,6 +137,11 @@ CV ampliada a **20 setmanes** (les 2 últimes de cada mes):
 
 Temps: 16 s per a 1.008 h (test públic).
 
+**Resultat web v5: 19,22** (1r: 23,46). Cap diferència de format d'`obs` no explica el gap. La hipòtesi és que les setmanes de test (finals de mes: la Mercè, Nadal, tancament d'agost) són **atípiques**, i les prediccions basades en perfils s'hi equivoquen.
+
+### hard v6 — autocorrecció online
+L'agent desa les seves prediccions i corregeix l'error sistemàtic que ha comès en les darreres 24 h (70 %). Test d'estrès amb "campus tancat" (consum ×0,65; oracle 35,59): v5 31,57 → **v6 32,01**. CV normal: **20,07**.
+
 **On és el marge que queda** (punts que guanyaríem amb cada predicció perfecta, sobre la v2): preu + CO₂ **+0,78**, consum + solar **+0,56**, totes **+1,34**. És a dir: **millorar les prediccions és la feina que falta** (Cesc 👀).
 
 **Lliurar:** `python src/make_zip.py` → puja `submission_hard.zip` (agent.py + params.json) a la pestanya *Mode Difícil*.
