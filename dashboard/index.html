@@ -9,7 +9,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Inter:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&display=swap">
 <style>
 /* Layout: un "escenari" amb cel viu (canvia amb l'hora) on actuen Sol, Xarxa i Bateria; panell lateral amb l'estat de l'hora. */
 :root {
@@ -19,7 +19,7 @@
   --clean-bg: #e2f5ea; --mid-bg: #fbf0d6; --dirty-bg: #fbe3e1;
   --shadow: 0 1px 2px rgba(19,35,59,.06), 0 8px 24px rgba(19,35,59,.07);
   --display: "Fredoka", "Trebuchet MS", system-ui, sans-serif;
-  --body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --body: "Nunito Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --bg: #0a1322; --panel: #111d30; --ink: #e7eef8; --muted: #93a4ba; --line: #22334c;
@@ -84,7 +84,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
 .gauge { position: absolute; left: 75%; top: 49%; width: 26px; height: 24%; border: 3px solid rgba(255,255,255,.95); border-radius: 8px;
   background: rgba(0,0,0,.18); z-index: 5; }
 .gauge::before { content: ""; position: absolute; top: -9px; left: 50%; width: 10px; height: 6px; transform: translateX(-50%); border-radius: 3px 3px 0 0; background: rgba(255,255,255,.95); }
-.gauge i { position: absolute; left: 2px; right: 2px; bottom: 2px; border-radius: 4px; background: var(--batt); transition: height 600ms ease; }
+.gauge i { position: absolute; left: 2px; right: 2px; bottom: 2px; height: calc(100% - 4px); border-radius: 4px; background: var(--batt); transform-origin: bottom; transform: scaleY(0); transition: transform 600ms ease; }
 .gauge b { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 6px; font-size: 12px; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.5); white-space: nowrap; }
 .bubble { position: absolute; left: 50%; bottom: 4%; transform: translateX(-50%); width: min(92%, 560px); z-index: 7;
   background: rgba(255,255,255,.95); color: #13233b; border-radius: 16px; padding: 10px 14px; font-size: 14.5px; line-height: 1.4;
@@ -112,7 +112,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
 .big { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .big div { display: grid; } .big b { font-family: var(--display); font-size: 26px; font-weight: 600; line-height: 1.1; } .big span { font-size: 12.5px; color: var(--muted); }
 .note { font-size: 13px; color: var(--muted); margin: 0; }
-.meter { height: 10px; border-radius: 999px; background: var(--line); overflow: hidden; } .meter i { display: block; height: 100%; background: var(--batt); border-radius: 999px; transition: width 600ms; }
+.meter { height: 10px; border-radius: 999px; background: var(--line); overflow: hidden; } .meter i { display: block; height: 100%; width: 100%; background: var(--batt); border-radius: 999px; transform-origin: left; transform: scaleX(0); transition: transform 600ms; }
 
 /* Joc */
 .choices { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
@@ -210,7 +210,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
           <div class="row"><span>Punts de l'agent (dia sencer)</span><b class="num" id="k-agent">–</b></div>
           <div class="row"><span>Màxim possible sabent el futur</span><b class="num" id="k-best">–</b></div>
         </div>
-        <div class="meter" aria-hidden="true"><i id="k-meter" style="width:0%"></i></div>
+        <div class="meter" aria-hidden="true"><i id="k-meter"></i></div>
         <p class="note" id="k-note"></p>
       </div>
     </aside>
@@ -382,7 +382,7 @@ function render(t, socBefore, p, socAfter) {
   else if (socBefore < 1) st = "drowsy";
   setState("cubee", st);
   const pct = Math.round((socAfter / m.cap) * 100);
-  $("gauge-fill").style.height = `calc(${pct}% - 4px)`;
+  $("gauge-fill").style.transform = `scaleY(${pct / 100})`;
   $("gauge-txt").textContent = `${pct} %`;
   $("campus").innerHTML = campusSVG(Math.min(1, d.load[t] / 1600));
 
@@ -431,7 +431,7 @@ function summary() {
   const a = dayScore(d, AGENT_SIM), b = dayScore(d, simulate(d, d.best, m.cap, m.pmax));
   $("k-agent").textContent = `${fmt(a.pts, 1)} punts`; $("k-best").textContent = `${fmt(b.pts, 1)} punts`;
   const pct = b.pts > 0 ? Math.min(100, (a.pts / b.pts) * 100) : 100;
-  $("k-meter").style.width = `${pct}%`;
+  $("k-meter").style.transform = `scaleX(${pct / 100})`;
   $("k-note").textContent = `L'agent només veu ${m.horizon === 3 ? "3 hores" : "24 hores"} de preus i CO₂ i no sap quant sol farà, i tot i així treu el ${fmt(pct)} % del màxim que obtindria algú que sabés tot el futur.`;
 }
 
