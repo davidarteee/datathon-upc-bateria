@@ -53,3 +53,9 @@ Registre de decisions tècniques i el seu perquè (servirà per a la presentaci�
 ## D13 — No adoptem el comitè de models (15/11)
 **Decisió:** mantenim la versió robusta (tau 20) com a lliurament.
 **Per què:** amb 6 episodis no vistos, les tres opcions empaten (diferències ≤0,007 punts, molt per sota del llindar de 0,10 fixat abans de la prova). Afegir complexitat sense guany demostrat només augmenta el risc. El model és a prop del seu límit de generalització.
+
+## D14 — Lliurament final: v10 del Dani (15/11)
+**Context:** comunicat oficial: 1 lliurament per equip, només compta el privat, premis només per al Mode Difícil.
+**Decisió:** `submission_hard_final.zip` (v10) és l'únic lliurament.
+**Per què:** en 6 episodis no vistos, totes les versions empaten (20,20–20,22). La diferència de la v10 és que coneix l'estructura pública del test (les setmanes i on acaben). És coneixement estructural, no ajust al rànquing públic, i cobreix les 12 setmanes, també les privades. Al servidor real dona +0,17 sobre la robusta.
+**Risc:** si el privat s'executés amb un format diferent (p. ex. només 6 setmanes no consecutives), l'enllaç entre setmanes podria apuntar a una setmana que no toca durant les hores de transició. L'impacte és petit: com a molt, les últimes ~24 h de cada setmana.

@@ -87,6 +87,23 @@ Avaluat amb `python src/evaluate.py <agent.py>` sobre el train, en trossos d'1 s
 
 ## 3b. 🔥 Mode Difícil (rànquing separat)
 
+> ### 🏁 LLIURAMENT FINAL: `submission_hard_final.zip` — v10 del Dani — **23,32 pts al públic**
+>
+> El comunicat de l'organització diu que només s'avalua **1 lliurament per equip**, que **només compta el rànquing privat** i que **els premis són només del Mode Difícil**.
+>
+> **v10 = v6 + tres canvis:** (1) coneix l'estructura del test, que és pública (els últims 7 dies de cada mes): quan l'horitzó passa del final d'una setmana, les hores següents són les de l'inici de la setmana següent; (2) no buida ni força el 50 % al final; (3) Setmana Santa al calendari.
+>
+> **Comparació en 6 episodis no vistos** ([hard_dani/experiments/robust/v10_compare.py](hard_dani/experiments/robust/v10_compare.py)):
+>
+> | Versió | No vist | Públic web |
+> |---|---|---|
+> | v6 | 20,200 | 23,16 |
+> | Robusta (tau 20) | 20,207 | 23,15 |
+> | **v10** | **20,211** | **23,32** |
+> | Robusta + truc de setmanes | 20,221 | — |
+>
+> Totes empaten en setmanes no vistes (diferències ≤0,02, per sota del llindar de 0,10). Triem la **v10** perquè (a) generalitza igual de bé, (b) la seva millora és **coneixement estructural del test**, que també s'aplica a les setmanes privades (inclou les 12), i no paràmetres ajustats al públic, i (c) és l'única amb aquest mecanisme verificat també al servidor real.
+>
 > ### ✅ Solució oficial del Mode Difícil: agent del Dani (v6) — **23,16 pts a la web**
 >
 > **Lliurament:** [`submission_hard.zip`](submission_hard.zip), que conté `agent.py`, `hard_v2_model.py` i `params.json` (SHA-256 `42db7842…20e0c4`). Codi a [submission_hard/](submission_hard/); entrenament a [hard_dani/](hard_dani/) (vegeu-ne el `LLEGEIX-ME.md`).
