@@ -2,6 +2,7 @@
 
     python -B experiments/dani_hard_v2/train.py validate      # hold-out de blocs A i B (com el test: setmanes senceres)
     python -B experiments/dani_hard_v2/train.py final         # entrena amb tot el train -> params.json
+    python -B experiments/dani_hard_v2/train.py robust        # versió robusta (tau 20) -> params_robust.json
 """
 
 import argparse
@@ -335,6 +336,21 @@ FINAL = {"use": {"load": [0, 1, 2], "pv": [0, 1, 2], "price": [0, 1, 2, 3, 4, 5,
 FINAL_CONFIG = {"stochastic": True, "s_now": 1.0, "s_future": 1.0, "adaptive_weights": 168, "episode_lengths": [1008, 2016], "end_cost": 1.0}
 
 
+ROBUST = {**FINAL, "tau": 20.0}   # versió robusta: perfils més llisos (validat a experiments/robust/)
+
+
+def robust():
+    """Com final(), però amb perfils per dia de l'any més llisos (tau 20 en lloc de 12).
+    A la validació amb setmanes retingudes té el millor score en setmanes no vistes (20,72 vs 20,69)
+    i la meitat de diferència vist/no vist (0,11 vs 0,21)."""
+    frame = lab.load_hard()
+    params = fit(frame, market_frame(), load_full=full_series(), **ROBUST)
+    params["config"] = FINAL_CONFIG
+    out = HERE / "params_robust.json"
+    out.write_text(json.dumps(params, allow_nan=False, separators=(",", ":")) + "\n", encoding="utf-8")
+    print(out.name, out.stat().st_size, "bytes")
+
+
 def final():
     """Paràmetres definitius: mateix disseny validat, entrenat amb tot el train."""
     frame = lab.load_hard()
@@ -346,6 +362,6 @@ def final():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("phase", choices=["validate", "final"])
+    parser.add_argument("phase", choices=["validate", "final", "robust"])
     args = parser.parse_args()
-    validate() if args.phase == "validate" else final()
+    {"validate": validate, "final": final, "robust": robust}[args.phase]()

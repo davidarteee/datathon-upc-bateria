@@ -110,6 +110,25 @@ Avaluat amb `python src/evaluate.py <agent.py>` sobre el train, en trossos d'1 s
 >
 > **Reentrenar:** descomprimiu `data/raw/paquet_participants_datathon_upc.zip` a l'arrel del repo, en una carpeta `paquet_participants_datathon_upc/`, i executeu des de `hard_dani/` l'ordre `python -B experiments/dani_hard_v2/train.py final`. Després, des de l'arrel, `python src/make_zip.py`.
 >
+> ### 🛡️ Versió robusta per al rànquing privat: `submission_hard_robust.zip`
+>
+> El rànquing final i el jurat fan servir les **6 setmanes privades**, que cap model ha vist. Per això el model que s'entrega s'ha de triar pel que fa en setmanes **no vistes**, no pel score públic. Hem provat 8 variants més regularitzades de la v6 del Dani ([hard_dani/experiments/robust/](hard_dani/experiments/robust/)), validades en 4 episodis de 1.008 h amb setmanes retingudes:
+>
+> | Variant | No vist | Vist | Diferència |
+> |---|---|---|---|
+> | v6 Dani | 20,69 | 20,90 | 0,21 |
+> | **Perfils més llisos (tau 20) ✅** | **20,72** | 20,83 | **0,11** |
+> | Perfils encara més llisos (tau 30) | 20,62 | 20,74 | 0,11 |
+> | Ridge 0,1 / Ridge 1 | 20,61 / 20,25 | 20,84 / 20,51 | 0,23 / 0,26 |
+> | Menys variables | 20,46 | 20,71 | 0,25 |
+> | tau 20 + ridge 0,1 (+ menys variables) | 20,62 (20,41) | 20,77 (20,55) | 0,15 (0,14) |
+>
+> **tau 20** és la millor en setmanes no vistes i redueix a la meitat la diferència vist/no vist. Simplificar més (ridge alt, menys variables) **empitjora en tot**: això ja és *underfitting*.
+>
+> **Recomanació per a la selecció final (2 lliuraments):** `submission_hard_robust.zip` (la més robusta) + `submission_hard.zip` (la v6 del Dani, 23,16 al públic).
+>
+> Reentrenar la robusta: `python -B experiments/dani_hard_v2/train.py robust` (des de `hard_dani/`), copiar `params_robust.json` a `submission_hard_robust/params.json` i executar `python src/make_zip.py`.
+>
 > *Historial:* el que hi ha a continuació documenta la nostra versió anterior (v1→v6, l'última amb 19,22 a la web), que queda al commit `4544bdc`. Els scripts `src/cv_hard.py`, `src/tune_hard.py` i `src/train_forecast.py` són d'aquella versió.
 
 **Què canvia:** bateria **6.000 kWh / ±1.500 kW**, solar **×12** (a migdia sobra energia gratis i neta que, si no es guarda, es perd), i `obs` només dona **3 hores** de preu i CO₂, no 24. A més, `noves_dades_5min` inclou la meteo de l'hora anterior (irradiància, temperatures, vent). Té quota pròpia: 10 intents fins dissabte a les 21 h, 10 fins diumenge a les 8 h i 10 diumenge.

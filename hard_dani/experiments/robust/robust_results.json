@@ -1,0 +1,154 @@
+[
+  {
+    "variant": "v6 Dani (referència)",
+    "no_vist": [
+      15.64,
+      26.97,
+      15.28,
+      24.89
+    ],
+    "vist": [
+      15.83,
+      27.1,
+      15.58,
+      25.1
+    ],
+    "mitjana_no_vist": 20.694,
+    "mitjana_vist": 20.901,
+    "diferencia": 0.207,
+    "pitjor_no_vist_vs_oracle": 0.904
+  },
+  {
+    "variant": "ridge 0,1",
+    "no_vist": [
+      15.57,
+      26.85,
+      15.18,
+      24.85
+    ],
+    "vist": [
+      15.73,
+      27.01,
+      15.55,
+      25.07
+    ],
+    "mitjana_no_vist": 20.609,
+    "mitjana_vist": 20.842,
+    "diferencia": 0.233,
+    "pitjor_no_vist_vs_oracle": 0.9
+  },
+  {
+    "variant": "ridge 1",
+    "no_vist": [
+      15.24,
+      26.37,
+      14.7,
+      24.71
+    ],
+    "vist": [
+      15.43,
+      26.59,
+      15.18,
+      24.86
+    ],
+    "mitjana_no_vist": 20.252,
+    "mitjana_vist": 20.513,
+    "diferencia": 0.261,
+    "pitjor_no_vist_vs_oracle": 0.878
+  },
+  {
+    "variant": "perfils llisos tau 20",
+    "no_vist": [
+      15.67,
+      26.93,
+      15.34,
+      24.92
+    ],
+    "vist": [
+      15.73,
+      27.06,
+      15.52,
+      25.0
+    ],
+    "mitjana_no_vist": 20.716,
+    "mitjana_vist": 20.826,
+    "diferencia": 0.11,
+    "pitjor_no_vist_vs_oracle": 0.906
+  },
+  {
+    "variant": "perfils llisos tau 30",
+    "no_vist": [
+      15.52,
+      26.81,
+      15.35,
+      24.81
+    ],
+    "vist": [
+      15.65,
+      26.94,
+      15.42,
+      24.94
+    ],
+    "mitjana_no_vist": 20.624,
+    "mitjana_vist": 20.735,
+    "diferencia": 0.111,
+    "pitjor_no_vist_vs_oracle": 0.897
+  },
+  {
+    "variant": "menys variables",
+    "no_vist": [
+      15.15,
+      26.77,
+      15.09,
+      24.83
+    ],
+    "vist": [
+      15.45,
+      26.98,
+      15.36,
+      25.05
+    ],
+    "mitjana_no_vist": 20.461,
+    "mitjana_vist": 20.71,
+    "diferencia": 0.25,
+    "pitjor_no_vist_vs_oracle": 0.876
+  },
+  {
+    "variant": "tau 20 + ridge 0,1",
+    "no_vist": [
+      15.51,
+      26.83,
+      15.27,
+      24.85
+    ],
+    "vist": [
+      15.61,
+      26.96,
+      15.49,
+      25.0
+    ],
+    "mitjana_no_vist": 20.616,
+    "mitjana_vist": 20.767,
+    "diferencia": 0.151,
+    "pitjor_no_vist_vs_oracle": 0.897
+  },
+  {
+    "variant": "tau 20 + ridge 0,1 + menys variables",
+    "no_vist": [
+      15.02,
+      26.71,
+      15.08,
+      24.84
+    ],
+    "vist": [
+      15.2,
+      26.78,
+      15.34,
+      24.89
+    ],
+    "mitjana_no_vist": 20.411,
+    "mitjana_vist": 20.551,
+    "diferencia": 0.14,
+    "pitjor_no_vist_vs_oracle": 0.868
+  }
+]

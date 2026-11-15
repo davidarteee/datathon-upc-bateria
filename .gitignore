@@ -15,6 +15,7 @@ submission.zip
 *.zip
 !data/raw/*.zip
 !submission_hard.zip
+!submission_hard_robust.zip
 
 # Sistema / editors
 .DS_Store

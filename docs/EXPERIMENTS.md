@@ -29,3 +29,4 @@ Si es puja al leaderboard, apunteu-hi també el score públic.
 | 18 | 14/11 | David | **v6 = estocàstic 12 + autocorrecció 0,7 (les 4 variables)** | **20,07 (CV20)** | 18,82 | 22,99 | 0 | pendent | 18 s/1.008 h. |
 | 19 | 15/11 | Dani | **Agent Dani v6** (calendari, perfils per dia de l'any, MPC estocàstic de 5 escenaris, final a SOC inicial) | — | | | 0 | **23,16** | |
 | 20 | 15/11 | David | Validació Dani vs nostra v6: setmanes A/B retingudes, episodis continus de 1.008 h | Dani 15,64 / 26,97 / 15,28 / 24,89 · nostra 15,17 / 26,38 / 15,23 / 24,53 | | | 0 | — | El Dani guanya les 4. Diferència vist/no vist: Dani 0,13–0,30, nostra 0,15–0,43 → generalitza bé. |
+| 21 | 15/11 | David | 8 variants regularitzades de la v6 Dani (`hard_dani/experiments/robust/`) | no vist: v6 20,69 · **tau20 20,72** · tau30 20,62 · ridge0,1 20,61 · ridge1 20,25 · menys var. 20,46 | | | 0 | pendent | Diferència vist/no vist: v6 0,21 · **tau20 0,11**. Regularitzar més = underfitting. |

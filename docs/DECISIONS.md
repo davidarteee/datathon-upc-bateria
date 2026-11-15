@@ -45,3 +45,7 @@ Registre de decisions tècniques i el seu perquè (servirà per a la presentaci�
 **Decisió:** `submission_hard/` = agent del Dani v6. El seu codi d'entrenament és a `hard_dani/`.
 **Per què:** treu 23,16 a la web (la nostra v6, 19,22) i guanya les 4 validacions amb setmanes retingudes. Gairebé no perd res en setmanes no vistes (0,13–0,30), així que no està sobreajustat al rànquing públic. La clau és el calendari (festius i tancaments) i acabar amb la càrrega inicial.
 **Risc conegut:** els festius estan escrits per al curs 2025–26 (és coneixement públic del calendari UPC, no dades del test), i l'agent suposa episodis web de 1.008 o 2.016 h.
+
+## D12 — Versió robusta (tau 20) per al rànquing privat (15/11)
+**Decisió:** `submission_hard_robust/` = v6 del Dani amb perfils per dia de l'any més llisos (tau 20).
+**Per què:** el rànquing privat són setmanes que cap model ha vist. A la validació amb setmanes retingudes, tau 20 té el millor score en setmanes no vistes (20,72) i la meitat de diferència vist/no vist (0,11 contra 0,21). Les variants més simples (ridge alt, menys variables) són pitjors en tot. Per a la selecció final de 2 lliuraments: la robusta + la v6 del Dani.
