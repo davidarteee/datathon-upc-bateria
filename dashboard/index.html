@@ -73,15 +73,16 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
   radial-gradient(1px 1px at 58% 22%, #fff 50%, transparent 51%), radial-gradient(1.5px 1.5px at 76% 12%, #fff 50%, transparent 51%),
   radial-gradient(1px 1px at 88% 30%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 22% 34%, #fff 50%, transparent 51%); }
 .hill { position: absolute; left: -5%; right: -5%; bottom: -30%; height: 58%; border-radius: 50% 50% 0 0; background: #4f9f5e; transition: background 600ms; }
-.campus { position: absolute; left: 6%; bottom: 13%; width: 30%; max-width: 260px; }
-.campus svg { width: 100%; height: auto; display: block; }
+.scene { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none; overflow: visible; }
+.flow { fill: none; stroke-linecap: round; stroke-dasharray: 7 9; animation: flow 0.9s linear infinite; }
+@keyframes flow { to { stroke-dashoffset: -32; } }
 .actor { position: absolute; transform: translate(-50%, -50%); transition: left 700ms ease, top 700ms ease, transform 700ms ease, opacity 600ms; }
-#a-sun { z-index: 1; } .hill { z-index: 2; } .campus { z-index: 3; } #a-grid { left: 80%; top: 22%; z-index: 3; } #a-batt { left: 58%; top: 56%; z-index: 4; }
-.smog { position: absolute; left: 80%; top: 22%; width: 34%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%;
+#a-sun { z-index: 1; } .hill { z-index: 2; } #a-grid { left: 84%; top: 20%; z-index: 4; } #a-batt { left: 84%; top: 57%; z-index: 5; }
+.smog { position: absolute; left: 84%; top: 20%; width: 34%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%;
   background: radial-gradient(closest-side, rgba(70,62,62,.55), rgba(70,62,62,0)); transition: opacity 600ms; pointer-events: none; z-index: 1; }
 .tag { position: absolute; transform: translate(-50%, 0); font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px;
   background: rgba(255,255,255,.88); color: #13233b; white-space: nowrap; z-index: 6; box-shadow: 0 2px 8px rgba(0,0,0,.12); transition: left 700ms ease, top 700ms ease; }
-.gauge { position: absolute; left: 75%; top: 49%; width: 26px; height: 24%; border: 3px solid rgba(255,255,255,.95); border-radius: 8px;
+.gauge { position: absolute; left: 94.5%; top: 39%; width: 22px; height: 22%; transform: translateX(-50%); border: 3px solid rgba(255,255,255,.95); border-radius: 8px;
   background: rgba(0,0,0,.18); z-index: 5; }
 .gauge::before { content: ""; position: absolute; top: -9px; left: 50%; width: 10px; height: 6px; transform: translateX(-50%); border-radius: 3px 3px 0 0; background: rgba(255,255,255,.95); }
 .gauge i { position: absolute; left: 2px; right: 2px; bottom: 2px; height: calc(100% - 4px); border-radius: 4px; background: var(--batt); transform-origin: bottom; transform: scaleY(0); transition: transform 600ms ease; }
@@ -119,7 +120,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
 .choice { border: 0; border-radius: 14px; padding: 12px 6px; font-weight: 600; display: grid; gap: 2px; justify-items: center; font-size: 14px; }
 .choice small { font-weight: 500; font-size: 11.5px; opacity: .8; }
 .choice.dis { background: #ffe8c2; color: #5a3600; } .choice.wait { background: var(--line); color: var(--ink); } .choice.chg { background: #c9f2d9; color: #0e4d2a; }
-.choice:disabled { opacity: .45; cursor: default; }
+.choice:disabled { opacity: .45; cursor: default; } .choice.busy { pointer-events: none; opacity: .7; }
 .ahead { display: grid; gap: 6px; }
 .ahead .h { display: grid; grid-template-columns: 52px 1fr auto; gap: 8px; align-items: center; font-size: 13.5px; }
 .strip { display: grid; grid-template-columns: repeat(24, 1fr); gap: 2px; }
@@ -133,10 +134,10 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
 .cta { border: 0; border-radius: 12px; padding: 11px 16px; background: var(--accent); color: var(--accent-ink); font-weight: 600; }
 .foot { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 16px; justify-content: space-between; }
 
-@media (max-width: 900px) { .main { grid-template-columns: minmax(0, 1fr); } .stage { aspect-ratio: 4 / 3.4; } .campus { width: 36%; } }
-@media (max-width: 600px) { .stage { aspect-ratio: 1 / 1.05; } #a-batt { top: 52%; } .gauge { top: 44%; } .campus { bottom: 18%; } }
+@media (max-width: 900px) { .main { grid-template-columns: minmax(0, 1fr); } .stage { aspect-ratio: 4 / 3.4; } }
+@media (max-width: 600px) { .stage { aspect-ratio: 1 / 1.05; } #a-batt { top: 54%; } .gauge { top: 42%; } }
 @media (max-width: 480px) { .bubble { font-size: 13px; } .tag { font-size: 11px; } .big b { font-size: 22px; } }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } .flow { animation: none; stroke-dasharray: none; } }
 </style>
 
 <div class="wrap">
@@ -170,7 +171,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
         <div class="actor" id="a-sun"></div>
         <div class="actor" id="a-grid"></div>
         <div class="hill" id="hill"></div>
-        <div class="campus" id="campus" aria-hidden="true"></div>
+        <svg class="scene" id="scene" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><g id="bld"></g><g id="flows"></g></svg>
         <div class="actor" id="a-batt"></div>
         <div class="gauge" id="gauge"><i id="gauge-fill"></i><b class="num" id="gauge-txt">50 %</b></div>
         <div class="tag num" id="t-sun">Sol 0 kW</div>
@@ -339,14 +340,46 @@ function mix(a, b, f) { const p = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i
 function sky(h) { for (let i = 0; i < SKY.length - 1; i++) { const [h0, a0, b0] = SKY[i], [h1, a1, b1] = SKY[i + 1];
   if (h >= h0 && h <= h1) { const f = (h - h0) / (h1 - h0); return [mix(a0, a1, f), mix(b0, b1, f)]; } } return [SKY[0][1], SKY[0][2]]; }
 
-function campusSVG(lit) {
-  const win = []; for (let r = 0; r < 3; r++) for (let c = 0; c < 6; c++) {
-    const on = ((r * 6 + c) * 7919) % 100 < lit * 100;
-    win.push(`<rect x="${18 + c * 26}" y="${46 + r * 26}" width="14" height="14" rx="2" fill="${on ? "#ffe07a" : "#33415c"}"/>`); }
-  return `<svg viewBox="0 0 190 140" role="img" aria-label="Edifici del campus"><rect x="6" y="30" width="178" height="110" rx="6" fill="#26324a"/>
-  <rect x="62" y="8" width="66" height="26" rx="4" fill="#2f3d59"/><rect x="0" y="134" width="190" height="6" fill="#1d2638"/>
-  <g>${win.join("")}</g><rect x="84" y="112" width="22" height="28" rx="3" fill="#1b2335"/>
-  <g fill="#3d5a8a"><rect x="12" y="22" width="40" height="8" transform="skewX(-20)"/><rect x="140" y="22" width="40" height="8" transform="skewX(-20)"/></g></svg>`;
+// Campus Nord: edificis (x, amplada, alçada) en % de l'escena; la base és a la línia del turó.
+const BASE = 83;
+const BUILDINGS = [[3, 10, 22], [14, 11, 16], [26, 8, 30], [35, 12, 14], [48, 9, 21], [58, 11, 12]];
+const roof = ([x, w, h]) => ({ x: x + w / 2, y: BASE - h - 1.2 });
+const mid = ([x, w, h]) => ({ x: x + w / 2, y: BASE - h * 0.55 });
+function campusSVG(lit, sunny) {
+  const out = [];
+  BUILDINGS.forEach(([x, w, h], i) => {
+    out.push(`<rect x="${x}" y="${BASE - h}" width="${w}" height="${h + 2}" rx="0.6" fill="${i % 2 ? "#2b3854" : "#26324a"}"/>`);
+    out.push(`<rect x="${x + w * 0.15}" y="${BASE - h - 1.4}" width="${w * 0.7}" height="1.2" rx="0.3" fill="${sunny ? "#5b8fd9" : "#3a5480"}"/>`);
+    const cols = Math.max(2, Math.floor(w / 2.6)), rows = Math.max(2, Math.floor((h - 3) / 3.6));
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const on = ((i * 97 + r * cols + c) * 7919) % 100 < lit * 100;
+      out.push(`<rect x="${x + 1 + c * ((w - 2) / cols) + 0.3}" y="${BASE - h + 2 + r * 3.6}" width="${(w - 2) / cols - 0.8}" height="1.9" rx="0.2" fill="${on ? "#ffe07a" : "#3a4866"}"/>`);
+    }
+  });
+  return out.join("");
+}
+const LV_COLOR = { clean: "#7cc8ff", mid: "#f0b429", dirty: "#e5534b" };   // xarxa: blau = neta, groc = normal, vermell = bruta
+function flowPaths(list) {
+  // cada flux: {from, to, color, kw, ref}; gruix proporcional als kW
+  return list.filter((f) => f.kw > 1).map((f) => {
+    const cx = (f.from.x + f.to.x) / 2, cy = Math.min(f.from.y, f.to.y) - 8;
+    const wpx = (1.5 + 5 * Math.min(1, f.kw / f.ref)).toFixed(1);
+    return `<path class="flow" d="M${f.from.x} ${f.from.y} Q${cx} ${cy} ${f.to.x} ${f.to.y}" stroke="${f.color}" stroke-width="${wpx}" vector-effect="non-scaling-stroke" opacity="0.92"/>`;
+  }).join("");
+}
+function drawFlows(d, t, p, grid, lv, sunPos, ref) {
+  const BAT = { x: 84, y: 60 }, NET = { x: 84, y: 26 }, list = [];
+  const pv = d.pv[t], load = d.load[t];
+  const k = BUILDINGS.length;
+  if (pv > 1 && sunPos) BUILDINGS.forEach((b) => list.push({ from: sunPos, to: roof(b), color: "#ffd23f", kw: pv / k, ref: ref / k }));
+  if (p < -1) BUILDINGS.forEach((b) => list.push({ from: BAT, to: mid(b), color: "#3fd87f", kw: -p / k, ref: ref / k }));
+  // càrrega: primer amb el sol que sobra (des dels terrats), la resta des de la xarxa
+  const fromSun = p > 1 ? Math.min(p, Math.max(0, pv - load)) : 0, fromGrid = p > 1 ? p - fromSun : 0;
+  if (fromSun > 1) [BUILDINGS[2], BUILDINGS[4]].forEach((b) => list.push({ from: roof(b), to: BAT, color: "#ffd23f", kw: fromSun / 2, ref: ref / 2 }));
+  if (fromGrid > 1) list.push({ from: NET, to: BAT, color: LV_COLOR[lv], kw: fromGrid, ref });
+  const toCampus = Math.max(0, grid - fromGrid);
+  if (toCampus > 1) [BUILDINGS[1], BUILDINGS[3], BUILDINGS[5]].forEach((b) => list.push({ from: NET, to: roof(b), color: LV_COLOR[lv], kw: toCampus / 3, ref: ref / 3 }));
+  $("flows").innerHTML = flowPaths(list);
 }
 
 function render(t, socBefore, p, socAfter) {
@@ -362,7 +395,7 @@ function render(t, socBefore, p, socAfter) {
   const maxPv = Math.max(1, ...d.pv), f = d.pv[t] / maxPv;
   const x = 12 + ((t - 5) / 15) * 50, arc = Math.sin(Math.min(Math.max((t - 5) / 15, 0), 1) * Math.PI);
   const sun = $("a-sun");
-  sun.style.left = `${Math.min(Math.max(x, 10), 64)}%`;
+  sun.style.left = `${Math.min(Math.max(x, 9), 62)}%`;
   sun.style.top = night ? "78%" : `${46 - arc * 30}%`;
   sun.style.opacity = night ? 0.35 : 1;
   sun.style.transform = `translate(-50%, -50%) scale(${night ? 0.55 : 0.6 + 0.55 * f})`;
@@ -384,12 +417,14 @@ function render(t, socBefore, p, socAfter) {
   const pct = Math.round((socAfter / m.cap) * 100);
   $("gauge-fill").style.transform = `scaleY(${pct / 100})`;
   $("gauge-txt").textContent = `${pct} %`;
-  $("campus").innerHTML = campusSVG(Math.min(1, d.load[t] / 1600));
+  $("bld").innerHTML = campusSVG(Math.min(1, d.load[t] / 1600), !night);
+  const sunPos = night ? null : { x: parseFloat(sun.style.left), y: parseFloat(sun.style.top) + 6 };
+  drawFlows(d, t, p, grid, lv, sunPos, Math.max(m.pmax, ...d.load));
 
   // Etiquetes de flux
   place("t-sun", sun.style.left, `calc(${sun.style.top} + 13%)`, `Sol ${kw(d.pv[t])}`);
-  place("t-grid", "80%", "38%", `Xarxa ${kw(grid)}`);
-  place("t-batt", "58%", "71%", p > 1 ? `Carrega ${kw(p)}` : p < -1 ? `Descarrega ${kw(-p)}` : "En repòs");
+  place("t-grid", "84%", "34%", `Xarxa ${kw(grid)}`);
+  place("t-batt", "84%", "70%", p > 1 ? `Carrega ${kw(p)}` : p < -1 ? `Descarrega ${kw(-p)}` : "En repòs");
   $("t-sun").style.opacity = night ? 0 : 1;
   return { net, grid, exp, lv };
 }
@@ -441,8 +476,8 @@ function newGame() { S.game = { t: 0, soc: day().soc0, actions: [], sim: [] }; $
 function showGame() {
   const g = S.game, d = day(), m = mode(), t = g.t;
   const shown = Math.min(t, 23);
-  const prev = g.sim.length ? g.sim[g.sim.length - 1] : { socBefore: d.soc0, soc: d.soc0, p: 0 };
-  render(shown, prev.socBefore, t === 0 ? 0 : prev.p, g.soc);
+  render(shown, g.soc, 0, g.soc);          // hora actual, encara sense decidir
+  g.busy = false; ["c-dis", "c-wait", "c-chg"].forEach((id) => $(id).classList.remove("busy"));
   $("hour").value = shown; $("hour-txt").textContent = `${String(shown).padStart(2, "0")}:00`;
   $("g-title").textContent = `Són les ${String(t).padStart(2, "0")}:00. Què fas?`;
   $("g-soc").textContent = `${fmt(g.soc)} kWh (${Math.round((g.soc / m.cap) * 100)} %)`;
@@ -463,6 +498,7 @@ function showGame() {
 }
 function play(dir) {
   const g = S.game, d = day(), m = mode(), t = g.t;
+  if (g.busy) return;
   const p = clampP(dir * m.pmax, g.soc, m.cap, m.pmax);
   const net = d.load[t] - d.pv[t], socBefore = g.soc;
   g.soc = p >= 0 ? g.soc + p * ETA : g.soc + p / ETA;
@@ -477,9 +513,10 @@ function play(dir) {
   else msg = `Has esperat. Consum real: ${kw(d.load[t])}, sol real: ${kw(d.pv[t])}.`;
   $("g-feedback").textContent = msg; $("who").textContent = "Pista"; $("say").textContent = msg;
   if (p > 1 || p < -1) poke("cubee", "nod");
-  g.t++;
-  if (g.t >= 24) return endGame();
-  showGame();
+  // primer es veu la teva decisió en acció a aquesta hora, després passem a la següent
+  render(t, socBefore, p, g.soc);
+  g.busy = true; ["c-dis", "c-wait", "c-chg"].forEach((id) => $(id).classList.add("busy"));
+  setTimeout(() => { g.t++; if (g.t >= 24) endGame(); else showGame(); }, 900);
 }
 function endGame() {
   const d = day(), m = mode(), g = S.game;
