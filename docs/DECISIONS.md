@@ -49,3 +49,7 @@ Registre de decisions tècniques i el seu perquè (servirà per a la presentaci�
 ## D12 — Versió robusta (tau 20) per al rànquing privat (15/11)
 **Decisió:** `submission_hard_robust/` = v6 del Dani amb perfils per dia de l'any més llisos (tau 20).
 **Per què:** el rànquing privat són setmanes que cap model ha vist. A la validació amb setmanes retingudes, tau 20 té el millor score en setmanes no vistes (20,72) i la meitat de diferència vist/no vist (0,11 contra 0,21). Les variants més simples (ridge alt, menys variables) són pitjors en tot. Per a la selecció final de 2 lliuraments: la robusta + la v6 del Dani.
+
+## D13 — No adoptem el comitè de models (15/11)
+**Decisió:** mantenim la versió robusta (tau 20) com a lliurament.
+**Per què:** amb 6 episodis no vistos, les tres opcions empaten (diferències ≤0,007 punts, molt per sota del llindar de 0,10 fixat abans de la prova). Afegir complexitat sense guany demostrat només augmenta el risc. El model és a prop del seu límit de generalització.

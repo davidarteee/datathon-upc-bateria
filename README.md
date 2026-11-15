@@ -125,6 +125,8 @@ Avaluat amb `python src/evaluate.py <agent.py>` sobre el train, en trossos d'1 s
 >
 > **tau 20** és la millor en setmanes no vistes i redueix a la meitat la diferència vist/no vist. Simplificar més (ridge alt, menys variables) **empitjora en tot**: això ja és *underfitting*.
 >
+> **Comitè de models (tau 12+20+30), provat amb 3 grups de setmanes retingudes (6 episodis):** v6 20,200 · robusta 20,207 · comitè 20,204. La regla, fixada abans de veure els resultats, era adoptar el comitè només si guanyava per més de 0,10. No ho fa (−0,003; guanya 3 de 6 episodis), així que **ens quedem la robusta**. Conclusió: el model ja és a prop del seu límit de generalització, i el marge que queda és a les **dades** (setmanes atípiques del test), no a l'ajust.
+>
 > **Recomanació per a la selecció final (2 lliuraments):** `submission_hard_robust.zip` (la més robusta) + `submission_hard.zip` (la v6 del Dani, 23,16 al públic).
 >
 > Reentrenar la robusta: `python -B experiments/dani_hard_v2/train.py robust` (des de `hard_dani/`), copiar `params_robust.json` a `submission_hard_robust/params.json` i executar `python src/make_zip.py`.
