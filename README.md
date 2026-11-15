@@ -18,6 +18,18 @@ Fàcil: la regla de llindars d'un company fa 3,68 al train; la nostra, 6,26 (mà
 
 ---
 
+## 🎮 App per al Premi Tukey: "El Torn de la Bateria"
+
+[`dashboard/index.html`](dashboard/index.html) (obrir-lo directament al navegador) · enllaç publicat: https://claude.ai/artifact/GuKPoU2JyS4xwsLp3Zig3y
+
+Tres personatges expliquen el problema: **Sunee** (el sol de les plaques), **Cloudee** (la xarxa: content quan és neta i barata, enfadada quan és bruta i cara) i **Cubee** (la bateria). Té dues vistes i el canvi **Mode Fàcil / Mode Difícil**:
+- **Mira l'agent:** 4 dies reals (primavera assolellada, hivern ennuvolat, diumenge de sol, agost). Una línia de temps hora a hora on la bateria explica cada decisió del model final, amb l'estalvi acumulat i el % del màxim teòric.
+- **Ara jugues tu:** controles la bateria amb la mateixa informació que l'agent (3 h de preus i CO₂ al Difícil, 24 h al Fàcil). Al final, et compara amb l'agent i amb el màxim possible.
+
+Regenerar: `python -W ignore dashboard/build_data.py` (executa els agents finals) i `python dashboard/build_app.py` (munta l'HTML amb les dades i els avatars). Avatars: [Bible Strong Avatar Lab](https://github.com/smontlouis/bible-strong-avatar-lab), paquet `@bible-strong/avatar-web` (MIT, a `dashboard/vendor/`).
+
+---
+
 ## 1. El problema en 1 minut
 
 A cada hora `t` l'agent rep `obs` (hora, dia, SOC, preu i CO₂ actuals, **preus i CO₂ de les properes 24 h**, i consum/solar de l'hora anterior) i retorna una consigna `P_t` en kW:

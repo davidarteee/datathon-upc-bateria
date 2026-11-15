@@ -1,0 +1,46 @@
+{
+  "name": "Cubee",
+  "body": {
+    "primary": {
+      "type": "cube",
+      "width": 300,
+      "height": 191.49921875,
+      "depth": 171.95848214285726,
+      "roundness": 0.73265625
+    },
+    "nodes": []
+  },
+  "colors": {
+    "body": "#58e482",
+    "eyes": "#111316"
+  },
+  "face": {
+    "eyes": {
+      "width": 1,
+      "height": 1,
+      "gap": 1,
+      "shiftY": -0.07310734785961104
+    },
+    "nose": {
+      "enabled": false,
+      "shape": "inverted-triangle",
+      "roundness": 50,
+      "width": 14,
+      "height": 11,
+      "x": 0,
+      "y": 22,
+      "angle": 0
+    },
+    "mouth": {
+      "enabled": false,
+      "shape": "curve",
+      "curve": 45,
+      "width": 20,
+      "height": 6,
+      "x": 0,
+      "y": 35,
+      "angle": 0
+    },
+    "perspective": 1
+  }
+}

@@ -1,0 +1,522 @@
+<title>El Torn de la Bateria</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Layout: un "escenari" amb cel viu (canvia amb l'hora) on actuen Sol, Xarxa i Bateria; panell lateral amb l'estat de l'hora. */
+:root {
+  --bg: #e9f0f7; --panel: #ffffff; --ink: #13233b; --muted: #5a6a80; --line: #d3dde8;
+  --accent: #f2b705; --accent-ink: #2a2100; --batt: #27b866;
+  --clean: #1f9d5c; --mid: #c88a00; --dirty: #d0443e;
+  --clean-bg: #e2f5ea; --mid-bg: #fbf0d6; --dirty-bg: #fbe3e1;
+  --shadow: 0 1px 2px rgba(19,35,59,.06), 0 8px 24px rgba(19,35,59,.07);
+  --display: "Fredoka", "Trebuchet MS", system-ui, sans-serif;
+  --body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0a1322; --panel: #111d30; --ink: #e7eef8; --muted: #93a4ba; --line: #22334c;
+  --accent: #ffc928; --accent-ink: #231a00; --batt: #3fd87f;
+  --clean: #43c983; --mid: #e6a92b; --dirty: #f0675f;
+  --clean-bg: #12301f; --mid-bg: #33280c; --dirty-bg: #3a1716;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25); color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0a1322; --panel: #111d30; --ink: #e7eef8; --muted: #93a4ba; --line: #22334c;
+  --accent: #ffc928; --accent-ink: #231a00; --batt: #3fd87f;
+  --clean: #43c983; --mid: #e6a92b; --dirty: #f0675f;
+  --clean-bg: #12301f; --mid-bg: #33280c; --dirty-bg: #3a1716;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25); color-scheme: dark; }
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.45; margin: 0; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 20px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 16px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 600; margin: 0; text-wrap: balance; letter-spacing: .2px; }
+h1 { font-size: clamp(26px, 4vw, 38px); line-height: 1.05; }
+.num { font-variant-numeric: tabular-nums; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* Capçalera */
+.top { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: end; justify-content: space-between; }
+.brand p { margin: 4px 0 0; color: var(--muted); max-width: 60ch; }
+.seg { display: inline-flex; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px; gap: 2px; box-shadow: var(--shadow); }
+.seg button { border: 0; background: transparent; padding: 8px 16px; border-radius: 999px; font-weight: 600; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
+.specs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chip { font-size: 12.5px; padding: 3px 10px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); color: var(--muted); }
+
+/* Barra de dies + pestanyes */
+.bar { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; }
+.days { display: flex; flex-wrap: wrap; gap: 8px; }
+.day { border: 1px solid var(--line); background: var(--panel); border-radius: 12px; padding: 7px 12px; text-align: left; display: grid; }
+.day b { font-weight: 600; font-size: 14px; } .day span { font-size: 12px; color: var(--muted); }
+.day[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.tabs button { padding: 9px 18px; }
+
+/* Escenari */
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 16px; align-items: start; }
+.stage { position: relative; border-radius: 22px; overflow: hidden; aspect-ratio: 16 / 10; max-width: 100%;
+  background: #6fb6ff; box-shadow: var(--shadow); transition: background 600ms ease; isolation: isolate; }
+.stage .glow { position: absolute; inset: 0; pointer-events: none; transition: opacity 600ms; }
+.stars { position: absolute; inset: 0; pointer-events: none; transition: opacity 600ms;
+  background-image: radial-gradient(1.5px 1.5px at 12% 18%, #fff 50%, transparent 51%), radial-gradient(1.5px 1.5px at 33% 9%, #fff 50%, transparent 51%),
+  radial-gradient(1px 1px at 58% 22%, #fff 50%, transparent 51%), radial-gradient(1.5px 1.5px at 76% 12%, #fff 50%, transparent 51%),
+  radial-gradient(1px 1px at 88% 30%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 22% 34%, #fff 50%, transparent 51%); }
+.hill { position: absolute; left: -5%; right: -5%; bottom: -30%; height: 58%; border-radius: 50% 50% 0 0; background: #4f9f5e; transition: background 600ms; }
+.campus { position: absolute; left: 6%; bottom: 13%; width: 30%; max-width: 260px; }
+.campus svg { width: 100%; height: auto; display: block; }
+.actor { position: absolute; transform: translate(-50%, -50%); transition: left 700ms ease, top 700ms ease, transform 700ms ease, opacity 600ms; }
+#a-sun { z-index: 1; } .hill { z-index: 2; } .campus { z-index: 3; } #a-grid { left: 80%; top: 22%; z-index: 3; } #a-batt { left: 58%; top: 56%; z-index: 4; }
+.smog { position: absolute; left: 80%; top: 22%; width: 34%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(70,62,62,.55), rgba(70,62,62,0)); transition: opacity 600ms; pointer-events: none; z-index: 1; }
+.tag { position: absolute; transform: translate(-50%, 0); font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px;
+  background: rgba(255,255,255,.88); color: #13233b; white-space: nowrap; z-index: 6; box-shadow: 0 2px 8px rgba(0,0,0,.12); transition: left 700ms ease, top 700ms ease; }
+.gauge { position: absolute; left: 75%; top: 49%; width: 26px; height: 24%; border: 3px solid rgba(255,255,255,.95); border-radius: 8px;
+  background: rgba(0,0,0,.18); z-index: 5; }
+.gauge::before { content: ""; position: absolute; top: -9px; left: 50%; width: 10px; height: 6px; transform: translateX(-50%); border-radius: 3px 3px 0 0; background: rgba(255,255,255,.95); }
+.gauge i { position: absolute; left: 2px; right: 2px; bottom: 2px; border-radius: 4px; background: var(--batt); transition: height 600ms ease; }
+.gauge b { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 6px; font-size: 12px; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.5); white-space: nowrap; }
+.bubble { position: absolute; left: 50%; bottom: 4%; transform: translateX(-50%); width: min(92%, 560px); z-index: 7;
+  background: rgba(255,255,255,.95); color: #13233b; border-radius: 16px; padding: 10px 14px; font-size: 14.5px; line-height: 1.4;
+  box-shadow: 0 6px 20px rgba(0,0,0,.18); display: flex; gap: 10px; align-items: flex-start; }
+.bubble .who { font-family: var(--display); font-weight: 600; color: #1d7a45; white-space: nowrap; }
+.clock { position: absolute; left: 3%; top: 4%; z-index: 7; font-family: var(--display); font-weight: 600; font-size: clamp(22px, 3.4vw, 34px);
+  color: #fff; text-shadow: 0 2px 6px rgba(0,0,0,.35); }
+.av-fallback { border-radius: 50%; display: grid; place-items: center; font-size: 40%; }
+
+/* Controls de temps */
+.timeline { display: flex; gap: 12px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; }
+.play { width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--ink); color: var(--panel); flex: none; font-size: 15px; }
+.timeline input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent); }
+.timeline .num { width: 52px; text-align: right; font-weight: 600; }
+
+/* Panell lateral */
+.side { display: grid; gap: 12px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; display: grid; gap: 10px; }
+.card h3 { font-size: 17px; }
+.rows { display: grid; gap: 8px; }
+.row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: baseline; }
+.row span { color: var(--muted); font-size: 13.5px; } .row b { font-weight: 600; }
+.pill { font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 999px; }
+.pill.clean { background: var(--clean-bg); color: var(--clean); } .pill.mid { background: var(--mid-bg); color: var(--mid); } .pill.dirty { background: var(--dirty-bg); color: var(--dirty); }
+.big { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.big div { display: grid; } .big b { font-family: var(--display); font-size: 26px; font-weight: 600; line-height: 1.1; } .big span { font-size: 12.5px; color: var(--muted); }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+.meter { height: 10px; border-radius: 999px; background: var(--line); overflow: hidden; } .meter i { display: block; height: 100%; background: var(--batt); border-radius: 999px; transition: width 600ms; }
+
+/* Joc */
+.choices { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.choice { border: 0; border-radius: 14px; padding: 12px 6px; font-weight: 600; display: grid; gap: 2px; justify-items: center; font-size: 14px; }
+.choice small { font-weight: 500; font-size: 11.5px; opacity: .8; }
+.choice.dis { background: #ffe8c2; color: #5a3600; } .choice.wait { background: var(--line); color: var(--ink); } .choice.chg { background: #c9f2d9; color: #0e4d2a; }
+.choice:disabled { opacity: .45; cursor: default; }
+.ahead { display: grid; gap: 6px; }
+.ahead .h { display: grid; grid-template-columns: 52px 1fr auto; gap: 8px; align-items: center; font-size: 13.5px; }
+.strip { display: grid; grid-template-columns: repeat(24, 1fr); gap: 2px; }
+.strip i { height: 18px; border-radius: 3px; }
+.strip-lab { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--muted); }
+.feedback { font-size: 13.5px; padding: 8px 10px; border-radius: 10px; background: var(--bg); min-height: 2.6em; }
+.result { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.result div { border: 1px solid var(--line); border-radius: 12px; padding: 10px; display: grid; gap: 2px; text-align: center; }
+.result .me { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.result b { font-family: var(--display); font-size: 24px; } .result span { font-size: 12px; color: var(--muted); }
+.cta { border: 0; border-radius: 12px; padding: 11px 16px; background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.foot { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 16px; justify-content: space-between; }
+
+@media (max-width: 900px) { .main { grid-template-columns: minmax(0, 1fr); } .stage { aspect-ratio: 4 / 3.4; } .campus { width: 36%; } }
+@media (max-width: 600px) { .stage { aspect-ratio: 1 / 1.05; } #a-batt { top: 52%; } .gauge { top: 44%; } .campus { bottom: 18%; } }
+@media (max-width: 480px) { .bubble { font-size: 13px; } .tag { font-size: 11px; } .big b { font-size: 22px; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>El Torn de la Bateria</h1>
+      <p>Un dia al Campus Nord de la UPC: el Sol, la Xarxa i la Bateria decideixen hora a hora com gastar menys CO₂ i menys diners.</p>
+      <div class="specs" id="specs"></div>
+    </div>
+    <div class="seg" role="group" aria-label="Mode del repte">
+      <button id="m-facil" aria-pressed="false">Mode Fàcil</button>
+      <button id="m-dificil" aria-pressed="true">Mode Difícil</button>
+    </div>
+  </header>
+
+  <div class="bar">
+    <div class="days" id="days" role="group" aria-label="Tria un dia real"></div>
+    <div class="seg tabs" role="group" aria-label="Vista">
+      <button id="v-dia" aria-pressed="true">Mira l'agent</button>
+      <button id="v-joc" aria-pressed="false">Ara jugues tu</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div style="display:grid; gap:12px; min-width:0">
+      <div class="stage" id="stage" aria-label="Escena del campus">
+        <div class="stars" id="stars"></div>
+        <div class="glow" id="glow"></div>
+        <div class="clock num" id="clock">12:00</div>
+        <div class="smog" id="smog"></div>
+        <div class="actor" id="a-sun"></div>
+        <div class="actor" id="a-grid"></div>
+        <div class="hill" id="hill"></div>
+        <div class="campus" id="campus" aria-hidden="true"></div>
+        <div class="actor" id="a-batt"></div>
+        <div class="gauge" id="gauge"><i id="gauge-fill"></i><b class="num" id="gauge-txt">50 %</b></div>
+        <div class="tag num" id="t-sun">Sol 0 kW</div>
+        <div class="tag num" id="t-grid">Xarxa 0 kW</div>
+        <div class="tag num" id="t-batt">Bateria 0 kW</div>
+        <div class="bubble" id="bubble"><span class="who" id="who">Bateria</span><span id="say">…</span></div>
+      </div>
+      <div class="timeline" id="timeline">
+        <button class="play" id="play" aria-label="Reprodueix el dia">▶</button>
+        <input type="range" id="hour" min="0" max="23" step="1" value="12" aria-label="Hora del dia">
+        <span class="num" id="hour-txt">12:00</span>
+      </div>
+    </div>
+
+    <aside class="side" id="side-dia">
+      <div class="card">
+        <h3>Ara mateix</h3>
+        <div class="rows">
+          <div class="row"><span>Consum del campus</span><b class="num" id="r-load">–</b></div>
+          <div class="row"><span>Sol de les plaques</span><b class="num" id="r-pv">–</b></div>
+          <div class="row"><span>Xarxa: CO₂</span><b class="num" id="r-co2">–</b></div>
+          <div class="row"><span>Xarxa: preu</span><b class="num" id="r-price">–</b></div>
+          <div class="row"><span>La bateria fa</span><b class="num" id="r-act">–</b></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Estalvi del dia fins ara</h3>
+        <div class="big">
+          <div><b class="num" id="s-kg">0</b><span>kg de CO₂ evitats</span></div>
+          <div><b class="num" id="s-eur">0 €</b><span>estalviats a la factura</span></div>
+        </div>
+        <p class="note" id="s-note">Comparat amb el campus sense bateria. L'energia guardada a la bateria ja compta.</p>
+      </div>
+      <div class="card">
+        <h3>Com de bé ho fa l'agent?</h3>
+        <div class="rows">
+          <div class="row"><span>Punts de l'agent (dia sencer)</span><b class="num" id="k-agent">–</b></div>
+          <div class="row"><span>Màxim possible sabent el futur</span><b class="num" id="k-best">–</b></div>
+        </div>
+        <div class="meter" aria-hidden="true"><i id="k-meter" style="width:0%"></i></div>
+        <p class="note" id="k-note"></p>
+      </div>
+    </aside>
+
+    <aside class="side" id="side-joc" hidden>
+      <div class="card" id="g-play">
+        <h3 id="g-title">Són les 00:00. Què fas?</h3>
+        <div class="rows">
+          <div class="row"><span>La bateria té</span><b class="num" id="g-soc">–</b></div>
+          <div class="row"><span>L'última hora el campus va gastar</span><b class="num" id="g-load">–</b></div>
+          <div class="row"><span>L'última hora el sol va donar</span><b class="num" id="g-pv">–</b></div>
+        </div>
+        <div class="ahead" id="g-ahead"></div>
+        <div class="choices">
+          <button class="choice dis" id="c-dis">Descarrega<small id="c-dis-kw">–</small></button>
+          <button class="choice wait" id="c-wait">Espera<small>0 kW</small></button>
+          <button class="choice chg" id="c-chg">Carrega<small id="c-chg-kw">–</small></button>
+        </div>
+        <div class="feedback" id="g-feedback">Tens la mateixa informació que l'agent. Intenta gastar el menys CO₂ possible: compta un 70 % de la nota, i els diners un 30 %.</div>
+      </div>
+      <div class="card" id="g-end" hidden>
+        <h3 id="g-end-title">Fi del dia</h3>
+        <div class="result">
+          <div class="me"><b class="num" id="e-me">–</b><span>Tu</span></div>
+          <div><b class="num" id="e-agent">–</b><span>El nostre agent</span></div>
+          <div><b class="num" id="e-best">–</b><span>Màxim possible</span></div>
+        </div>
+        <p class="note" id="e-detail"></p>
+        <p class="note">Els punts segueixen la fórmula del repte: 70 % reducció de CO₂ + 30 % reducció del cost, respecte al campus sense bateria. L'energia que queda a la bateria al final del dia també compta.</p>
+        <button class="cta" id="e-again">Torna-ho a provar</button>
+      </div>
+    </aside>
+  </div>
+
+  <footer class="foot">
+    <span>Dades reals del train (Campus Nord, 2025–26). Fàcil: el nostre agent MPC-LP · Difícil: agent v10 de La MasIA.</span>
+    <span>Avatars: Bible Strong Avatar Lab, de Stéphane Montlouis-Calixte (MIT).</span>
+  </footer>
+</div>
+
+<script>/*__AVATAR_BUNDLE__*/</script>
+<script>
+const DATA = /*__DATA__*/null;
+const AVATARS = /*__AVATARS__*/null;
+const ETA = Math.sqrt(0.9);
+const K = { facil: 0.2517, dificil: 0.2617 };   // pes del preu respecte del CO2 (70/30 del repte)
+
+const S = { mode: "dificil", day: 0, view: "dia", hour: 12, timer: null, game: null };
+const $ = (id) => document.getElementById(id);
+const fmt = (x, d = 0) => x.toLocaleString("ca-ES", { minimumFractionDigits: d, maximumFractionDigits: d });
+const kw = (x) => `${fmt(Math.round(x))} kW`;
+
+// ---------- física i puntuació (la mateixa que el simulador oficial) ----------
+function clampP(p, soc, cap, pmax) {
+  const c = Math.max(0, Math.min(pmax, (cap - soc) / ETA - 1e-4));
+  const d = Math.max(0, Math.min(pmax, soc * ETA - 1e-4));
+  return Math.max(-d, Math.min(c, p));
+}
+function simulate(day, actions, cap, pmax) {
+  let soc = day.soc0; const out = [];
+  for (let t = 0; t < actions.length; t++) {
+    const p = clampP(actions[t], soc, cap, pmax);
+    const socBefore = soc;
+    soc = p >= 0 ? soc + p * ETA : soc + p / ETA;
+    const net = day.load[t] - day.pv[t];
+    out.push({ p, socBefore, soc, grid: Math.max(0, net + p), base: Math.max(0, net), exp: Math.max(0, -(net + p)) });
+  }
+  return out;
+}
+function dayScore(day, sim) {
+  let cb = 0, pb = 0, ca = 0, pa = 0, bs = 0;
+  for (let t = 0; t < 24; t++) {
+    const s = sim[t]; cb += s.base * day.co2[t]; pb += s.base * day.price[t]; bs += s.base;
+    ca += s.grid * day.co2[t]; pa += s.grid * day.price[t];
+  }
+  const adj = (sim[23].soc - day.soc0) * ETA;          // energia guardada (o gastada) respecte de l'inici
+  const ce = ca - adj * cb / bs, pe = pa - adj * pb / bs;
+  return { pts: 100 * (0.7 * (1 - ce / cb) + 0.3 * (1 - pe / pb)), kg: cb - ce, eur: pb - pe };
+}
+function cumulative(day, sim, upto) {
+  // Estalvi fins a l'hora `upto`, comptant l'energia guardada a la bateria al valor mitjà del dia (com la puntuació final)
+  let kg = 0, eur = 0, cb = 0, pb = 0, bs = 0;
+  for (let t = 0; t < 24; t++) { const s = sim[t]; cb += s.base * day.co2[t]; pb += s.base * day.price[t]; bs += s.base; }
+  for (let t = 0; t <= upto; t++) { const s = sim[t]; kg += (s.base - s.grid) * day.co2[t]; eur += (s.base - s.grid) * day.price[t]; }
+  const adj = (sim[upto].soc - day.soc0) * ETA;
+  return { kg: kg + adj * cb / bs, eur: eur + adj * pb / bs };
+}
+
+// ---------- context ----------
+const mode = () => DATA.modes[S.mode];
+const day = () => mode().days[S.day];
+const w = (d, t) => d.co2[t] + K[S.mode] * d.price[t];
+function levels(d) { const v = []; for (let t = 0; t < 24; t++) v.push(w(d, t)); v.sort((a, b) => a - b); return [v[8], v[16]]; }
+function level(d, t) { const [a, b] = levels(d); const x = w(d, t); return x <= a ? "clean" : x >= b ? "dirty" : "mid"; }
+const LEVEL_TXT = { clean: "neta i barata", mid: "normal", dirty: "bruta i cara" };
+
+// ---------- avatars ----------
+const AV = {};
+function makeAvatar(slot, key, size) {
+  const el = $(slot); el.innerHTML = "";
+  try {
+    AV[key] = { ctl: AvatarWeb.createAvatar(el, { character: AVATARS[key], state: "idle", size, ariaLabel: key }), state: "idle" };
+  } catch (e) {
+    const f = document.createElement("div"); f.className = "av-fallback";
+    f.style.width = f.style.height = size + "px";
+    f.style.background = { sunee: "#f5fe71", cloudee: "#c9cbcf", cubee: "#58e482" }[key];
+    f.textContent = "• •"; el.appendChild(f); AV[key] = null;
+  }
+}
+function setState(key, st) { const a = AV[key]; if (a && a.state !== st) { a.state = st; a.ctl.setState(st); } }
+function poke(key, g) { const a = AV[key]; if (a) a.ctl.poke(g); }
+
+// ---------- escena ----------
+const SKY = [[0, "#0c1631", "#14224a"], [5, "#16234d", "#2a2f63"], [7, "#f3a37c", "#ffd9a8"], [9, "#7fbaf6", "#bfe0ff"],
+  [13, "#5ea9f2", "#a9d6ff"], [17, "#78b3ee", "#ffd59c"], [19, "#f0875e", "#ffc28a"], [21, "#1f2558", "#3b3f7a"], [24, "#0c1631", "#14224a"]];
+function mix(a, b, f) { const p = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); const x = p(a), y = p(b);
+  return "#" + x.map((v, i) => Math.round(v + (y[i] - v) * f).toString(16).padStart(2, "0")).join(""); }
+function sky(h) { for (let i = 0; i < SKY.length - 1; i++) { const [h0, a0, b0] = SKY[i], [h1, a1, b1] = SKY[i + 1];
+  if (h >= h0 && h <= h1) { const f = (h - h0) / (h1 - h0); return [mix(a0, a1, f), mix(b0, b1, f)]; } } return [SKY[0][1], SKY[0][2]]; }
+
+function campusSVG(lit) {
+  const win = []; for (let r = 0; r < 3; r++) for (let c = 0; c < 6; c++) {
+    const on = ((r * 6 + c) * 7919) % 100 < lit * 100;
+    win.push(`<rect x="${18 + c * 26}" y="${46 + r * 26}" width="14" height="14" rx="2" fill="${on ? "#ffe07a" : "#33415c"}"/>`); }
+  return `<svg viewBox="0 0 190 140" role="img" aria-label="Edifici del campus"><rect x="6" y="30" width="178" height="110" rx="6" fill="#26324a"/>
+  <rect x="62" y="8" width="66" height="26" rx="4" fill="#2f3d59"/><rect x="0" y="134" width="190" height="6" fill="#1d2638"/>
+  <g>${win.join("")}</g><rect x="84" y="112" width="22" height="28" rx="3" fill="#1b2335"/>
+  <g fill="#3d5a8a"><rect x="12" y="22" width="40" height="8" transform="skewX(-20)"/><rect x="140" y="22" width="40" height="8" transform="skewX(-20)"/></g></svg>`;
+}
+
+function render(t, socBefore, p, socAfter) {
+  const d = day(), m = mode();
+  const [top, bottom] = sky(t + 0.5);
+  $("stage").style.background = `linear-gradient(180deg, ${top} 0%, ${bottom} 72%)`;
+  const night = d.pv[t] < 0.015 * Math.max(1, ...d.pv);
+  $("stars").style.opacity = night ? 0.9 : 0;
+  $("hill").style.background = night ? "#24402e" : "#4f9f5e";
+  $("clock").textContent = `${String(t).padStart(2, "0")}:00`;
+
+  // Sol: arc sobre el cel i mida segons la producció
+  const maxPv = Math.max(1, ...d.pv), f = d.pv[t] / maxPv;
+  const x = 12 + ((t - 5) / 15) * 50, arc = Math.sin(Math.min(Math.max((t - 5) / 15, 0), 1) * Math.PI);
+  const sun = $("a-sun");
+  sun.style.left = `${Math.min(Math.max(x, 10), 64)}%`;
+  sun.style.top = night ? "78%" : `${46 - arc * 30}%`;
+  sun.style.opacity = night ? 0.35 : 1;
+  sun.style.transform = `translate(-50%, -50%) scale(${night ? 0.55 : 0.6 + 0.55 * f})`;
+  setState("sunee", night ? "sleeping" : f > 0.6 ? "excited" : f > 0.25 ? "happy" : t < 10 ? "waking" : "drowsy");
+
+  // Xarxa: humor segons com de neta i barata és l'electricitat
+  const lv = level(d, t);
+  setState("cloudee", lv === "clean" ? "happy" : lv === "dirty" ? "angry" : "idle");
+  $("smog").style.opacity = lv === "dirty" ? 1 : lv === "mid" ? 0.45 : 0;
+
+  // Bateria
+  const net = d.load[t] - d.pv[t], grid = Math.max(0, net + p), exp = Math.max(0, -(net + p));
+  let st = "idle";
+  if (p > 1) st = d.pv[t] > d.load[t] ? "excited" : "working";
+  else if (p < -1) st = "proud";
+  else if (exp > 1) st = "sad";
+  else if (socBefore < 1) st = "drowsy";
+  setState("cubee", st);
+  const pct = Math.round((socAfter / m.cap) * 100);
+  $("gauge-fill").style.height = `calc(${pct}% - 4px)`;
+  $("gauge-txt").textContent = `${pct} %`;
+  $("campus").innerHTML = campusSVG(Math.min(1, d.load[t] / 1600));
+
+  // Etiquetes de flux
+  place("t-sun", sun.style.left, `calc(${sun.style.top} + 13%)`, `Sol ${kw(d.pv[t])}`);
+  place("t-grid", "80%", "38%", `Xarxa ${kw(grid)}`);
+  place("t-batt", "58%", "71%", p > 1 ? `Carrega ${kw(p)}` : p < -1 ? `Descarrega ${kw(-p)}` : "En repòs");
+  $("t-sun").style.opacity = night ? 0 : 1;
+  return { net, grid, exp, lv };
+}
+function place(id, left, top, text) { const e = $(id); e.style.left = left; e.style.top = top; e.textContent = text; }
+
+// ---------- per què? (explicació de la decisió de l'agent) ----------
+function reason(t, p, socBefore) {
+  const d = day(), m = mode(), H = m.horizon;
+  const now = w(d, t), ahead = []; for (let k = 1; k < H && t + k < d.co2.length; k++) ahead.push(w(d, t + k));
+  const hi = ahead.length ? Math.max(...ahead) : now, lo = ahead.length ? Math.min(...ahead) : now;
+  const sur = d.pv[t] - d.load[t], g = (x) => `${fmt(x * 1000)} g CO₂/kWh`;
+  const win = H === 3 ? "les properes 3 hores" : "les properes 24 hores";
+  if (p > 1 && sur > 0) return `Sobra sol: ${kw(sur)} que el campus no fa servir. El guardo, és energia gratis i neta.`;
+  if (p > 1) return `Carrego ${kw(p)}: ara la xarxa és ${LEVEL_TXT[level(d, t)]} (${g(d.co2[t])}).${hi > now * 1.12 ? ` Sé que en ${win} anirà a pitjor.` : ""}`;
+  if (p < -1) return `Descarrego ${kw(-p)}: ara la xarxa és ${LEVEL_TXT[level(d, t)]} (${g(d.co2[t])}, ${fmt(d.price[t], 3)} €/kWh). Millor gastar el que tinc guardat.`;
+  if (socBefore >= m.cap * 0.98 && sur > 0) return "Estic plena. El sol que sobra ara s'escapa cap a la xarxa sense cobrar res.";
+  if (socBefore < 1) return lo < now ? `Estic buida i espero: en ${win} la xarxa serà més neta per carregar.` : "Estic buida. Ara no surt a compte carregar.";
+  return "Espero. Ara no és prou bon moment per carregar ni prou dolent per descarregar.";
+}
+
+// ---------- vista "Mira l'agent" ----------
+let AGENT_SIM = null;
+function showDia() {
+  const d = day(), m = mode(), t = S.hour;
+  const s = AGENT_SIM[t];
+  const r = render(t, s.socBefore, s.p, s.soc);
+  $("hour").value = t; $("hour-txt").textContent = `${String(t).padStart(2, "0")}:00`;
+  $("r-load").textContent = kw(d.load[t]); $("r-pv").textContent = kw(d.pv[t]);
+  $("r-co2").innerHTML = `${fmt(d.co2[t] * 1000)} g/kWh <span class="pill ${r.lv}">${LEVEL_TXT[r.lv]}</span>`;
+  $("r-price").textContent = `${fmt(d.price[t], 3)} €/kWh`;
+  $("r-act").textContent = s.p > 1 ? `carrega ${kw(s.p)}` : s.p < -1 ? `descarrega ${kw(-s.p)}` : "repòs";
+  $("say").textContent = reason(t, s.p, s.socBefore);
+  const c = cumulative(d, AGENT_SIM, t);
+  $("s-kg").textContent = fmt(c.kg); $("s-eur").textContent = `${fmt(c.eur)} €`;
+  $("s-note").textContent = c.kg > 0 ? `Equival a uns ${fmt(c.kg / 0.12)} km en cotxe que no s'han fet (aprox. 120 g CO₂/km).` : "Comparat amb el campus sense bateria. L'energia guardada a la bateria ja compta.";
+}
+function summary() {
+  const d = day(), m = mode();
+  const a = dayScore(d, AGENT_SIM), b = dayScore(d, simulate(d, d.best, m.cap, m.pmax));
+  $("k-agent").textContent = `${fmt(a.pts, 1)} punts`; $("k-best").textContent = `${fmt(b.pts, 1)} punts`;
+  const pct = b.pts > 0 ? Math.min(100, (a.pts / b.pts) * 100) : 100;
+  $("k-meter").style.width = `${pct}%`;
+  $("k-note").textContent = `L'agent només veu ${m.horizon === 3 ? "3 hores" : "24 hores"} de preus i CO₂ i no sap quant sol farà, i tot i així treu el ${fmt(pct)} % del màxim que obtindria algú que sabés tot el futur.`;
+}
+
+// ---------- vista "Ara jugues tu" ----------
+function newGame() { S.game = { t: 0, soc: day().soc0, actions: [], sim: [] }; $("g-end").hidden = true; $("g-play").hidden = false;
+  $("g-feedback").textContent = "Tens la mateixa informació que l'agent. Intenta gastar el menys CO₂ possible: compta un 70 % de la nota, i els diners un 30 %."; showGame(); }
+function showGame() {
+  const g = S.game, d = day(), m = mode(), t = g.t;
+  const shown = Math.min(t, 23);
+  const prev = g.sim.length ? g.sim[g.sim.length - 1] : { socBefore: d.soc0, soc: d.soc0, p: 0 };
+  render(shown, prev.socBefore, t === 0 ? 0 : prev.p, g.soc);
+  $("hour").value = shown; $("hour-txt").textContent = `${String(shown).padStart(2, "0")}:00`;
+  $("g-title").textContent = `Són les ${String(t).padStart(2, "0")}:00. Què fas?`;
+  $("g-soc").textContent = `${fmt(g.soc)} kWh (${Math.round((g.soc / m.cap) * 100)} %)`;
+  $("g-load").textContent = kw(t === 0 ? d.prev_load : d.load[t - 1]);
+  $("g-pv").textContent = kw(t === 0 ? d.prev_pv : d.pv[t - 1]);
+  const box = $("g-ahead");
+  if (m.horizon === 3) {
+    box.innerHTML = [0, 1, 2].map((k) => { const lv = level(d, Math.min(t + k, 23));
+      return `<div class="h"><b class="num">${String((t + k) % 24).padStart(2, "0")}:00</b><span class="num">${fmt(d.co2[t + k] * 1000)} g CO₂ · ${fmt(d.price[t + k], 3)} €</span><span class="pill ${lv}">${LEVEL_TXT[lv]}</span></div>`; }).join("");
+  } else {
+    const cells = []; for (let k = 0; k < 24; k++) { const lv = level(d, Math.min(t + k, 23)), c = { clean: "var(--clean)", mid: "var(--mid)", dirty: "var(--dirty)" }[lv];
+      cells.push(`<i title="${String((t + k) % 24).padStart(2, "0")}:00 · ${LEVEL_TXT[lv]}" style="background:${c}; opacity:${k === 0 ? 1 : 0.75}"></i>`); }
+    box.innerHTML = `<div class="strip-lab"><span>ara</span><span>com estarà la xarxa les properes 24 h</span><span>+23 h</span></div><div class="strip">${cells.join("")}</div>`;
+  }
+  const maxC = clampP(m.pmax, g.soc, m.cap, m.pmax), maxD = -clampP(-m.pmax, g.soc, m.cap, m.pmax);
+  $("c-chg-kw").textContent = kw(maxC); $("c-dis-kw").textContent = kw(maxD);
+  $("c-chg").disabled = maxC < 1; $("c-dis").disabled = maxD < 1;
+}
+function play(dir) {
+  const g = S.game, d = day(), m = mode(), t = g.t;
+  const p = clampP(dir * m.pmax, g.soc, m.cap, m.pmax);
+  const net = d.load[t] - d.pv[t], socBefore = g.soc;
+  g.soc = p >= 0 ? g.soc + p * ETA : g.soc + p / ETA;
+  g.actions.push(p); g.sim.push({ p, socBefore, soc: g.soc, grid: Math.max(0, net + p), base: Math.max(0, net), exp: Math.max(0, -(net + p)) });
+  const exp = Math.max(0, -(net + p)), lv = level(d, t);
+  let msg;
+  if (exp > 1 && p < 0) msg = `Has descarregat més del que el campus gastava: ${kw(exp)} s'han perdut cap a la xarxa.`;
+  else if (exp > 1) msg = `Sobrava sol i ${kw(exp)} s'han perdut. Calia tenir lloc a la bateria.`;
+  else if (p > 1 && net < 0) msg = "Molt bé: has guardat sol gratis.";
+  else if (p > 1) msg = lv === "dirty" ? "Compte: has carregat quan la xarxa era bruta i cara." : `Has carregat de la xarxa (${LEVEL_TXT[lv]}).`;
+  else if (p < -1) msg = lv === "dirty" ? "Bona jugada: has descarregat a l'hora més bruta." : `Has descarregat amb la xarxa ${LEVEL_TXT[lv]}.`;
+  else msg = `Has esperat. Consum real: ${kw(d.load[t])}, sol real: ${kw(d.pv[t])}.`;
+  $("g-feedback").textContent = msg; $("who").textContent = "Pista"; $("say").textContent = msg;
+  if (p > 1 || p < -1) poke("cubee", "nod");
+  g.t++;
+  if (g.t >= 24) return endGame();
+  showGame();
+}
+function endGame() {
+  const d = day(), m = mode(), g = S.game;
+  render(23, g.sim[23].socBefore, g.sim[23].p, g.soc);
+  const me = dayScore(d, g.sim), a = dayScore(d, AGENT_SIM), b = dayScore(d, simulate(d, d.best, m.cap, m.pmax));
+  $("e-me").textContent = fmt(me.pts, 1); $("e-agent").textContent = fmt(a.pts, 1); $("e-best").textContent = fmt(b.pts, 1);
+  const beat = me.pts >= a.pts - 0.05;
+  $("g-end-title").textContent = beat ? "Has igualat o superat l'agent!" : "Fi del dia: l'agent guanya aquesta vegada";
+  const mine = me.kg >= 0 ? `Tu has evitat ${fmt(me.kg)} kg de CO₂ i ${fmt(me.eur)} €` : `Amb les teves decisions el campus ha emès ${fmt(-me.kg)} kg de CO₂ més que sense bateria`;
+  $("e-detail").textContent = `${mine}. L'agent ha evitat ${fmt(a.kg)} kg i ${fmt(a.eur)} €, sense saber el futur.`;
+  $("who").textContent = "Bateria"; $("say").textContent = beat ? "Ho has fet molt bé! Ja saps com penso." : "Truc: guarda el sol del migdia i gasta'l quan la xarxa és bruta, al vespre.";
+  setState("cubee", beat ? "celebrate" : "sad"); setState("sunee", beat ? "excited" : "idle");
+  $("g-play").hidden = true; $("g-end").hidden = false;
+}
+
+// ---------- muntatge ----------
+function refresh() {
+  stop();
+  const m = mode();
+  $("specs").innerHTML = [`Bateria ${fmt(m.cap)} kWh`, `±${fmt(m.pmax)} kW`, m.pv_scale > 1 ? `Plaques solars ×${m.pv_scale}` : "Plaques solars actuals",
+    `L'agent veu ${m.horizon === 3 ? "3 h" : "24 h"} de preus i CO₂`].map((x) => `<span class="chip">${x}</span>`).join("");
+  $("days").innerHTML = m.days.map((d, i) => `<button class="day" aria-pressed="${i === S.day}" data-i="${i}"><b>${d.title}</b><span>${new Date(d.date + "T12:00").toLocaleDateString("ca-ES", { day: "numeric", month: "long" })}</span></button>`).join("");
+  document.querySelectorAll(".day").forEach((b) => b.onclick = () => { S.day = +b.dataset.i; refresh(); });
+  ["facil", "dificil"].forEach((k) => $("m-" + k).setAttribute("aria-pressed", S.mode === k));
+  ["dia", "joc"].forEach((k) => $("v-" + k).setAttribute("aria-pressed", S.view === k));
+  AGENT_SIM = simulate(day(), day().agent, m.cap, m.pmax);
+  summary();
+  $("side-dia").hidden = S.view !== "dia"; $("side-joc").hidden = S.view !== "joc";
+  $("timeline").style.display = S.view === "dia" ? "" : "none";
+  $("who").textContent = S.view === "dia" ? "Bateria" : "Pista";
+  if (S.view === "dia") showDia(); else { newGame(); $("say").textContent = "Ara la bateria la controles tu. Mira les properes hores a la dreta i tria."; }
+}
+function stop() { if (S.timer) { clearInterval(S.timer); S.timer = null; } $("play").textContent = "▶"; $("play").setAttribute("aria-label", "Reprodueix el dia"); }
+function toggle() {
+  if (S.timer) return stop();
+  if (S.hour >= 23) S.hour = 0;
+  $("play").textContent = "❚❚"; $("play").setAttribute("aria-label", "Atura");
+  S.timer = setInterval(() => { S.hour++; showDia(); if (S.hour >= 23) stop(); }, 900);
+}
+
+function init() {
+  const size = window.innerWidth < 600 ? 72 : 128;
+  makeAvatar("a-sun", "sunee", size); makeAvatar("a-grid", "cloudee", size); makeAvatar("a-batt", "cubee", size);
+  $("m-facil").onclick = () => { S.mode = "facil"; refresh(); };
+  $("m-dificil").onclick = () => { S.mode = "dificil"; refresh(); };
+  $("v-dia").onclick = () => { S.view = "dia"; refresh(); };
+  $("v-joc").onclick = () => { S.view = "joc"; refresh(); };
+  $("hour").oninput = (e) => { stop(); S.hour = +e.target.value; showDia(); };
+  $("play").onclick = toggle;
+  $("c-dis").onclick = () => play(-1); $("c-wait").onclick = () => play(0); $("c-chg").onclick = () => play(1);
+  $("e-again").onclick = newGame;
+  refresh();
+}
+init();
+</script>
