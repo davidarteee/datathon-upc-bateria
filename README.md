@@ -7,6 +7,17 @@
 
 ---
 
+## 🏁 LLIURAMENTS FINALS
+
+| Mode | Fitxer | Què és | Públic web |
+|---|---|---|---|
+| **Fàcil** | [`submission_easy_final.zip`](submission_easy_final.zip) | Nostra v1 MPC-LP 24 h (99,9 % del màxim teòric al train) | **6,43** |
+| **Difícil** | [`submission_hard_final.zip`](submission_hard_final.zip) | v10 del Dani (calendari + MPC estocàstic + estructura del test) | **23,32** |
+
+Fàcil: la regla de llindars d'un company fa 3,68 al train; la nostra, 6,26 (màxim 6,265). Entreguem exactament la versió ja verificada a la web (6,43), sense el canvi posterior de final de mes, que no s'ha provat al servidor.
+
+---
+
 ## 1. El problema en 1 minut
 
 A cada hora `t` l'agent rep `obs` (hora, dia, SOC, preu i CO₂ actuals, **preus i CO₂ de les properes 24 h**, i consum/solar de l'hora anterior) i retorna una consigna `P_t` en kW:
