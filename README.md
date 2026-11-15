@@ -87,6 +87,31 @@ Avaluat amb `python src/evaluate.py <agent.py>` sobre el train, en trossos d'1 s
 
 ## 3b. 🔥 Mode Difícil (rànquing separat)
 
+> ### ✅ Solució oficial del Mode Difícil: agent del Dani (v6) — **23,16 pts a la web**
+>
+> **Lliurament:** [`submission_hard.zip`](submission_hard.zip), que conté `agent.py`, `hard_v2_model.py` i `params.json` (SHA-256 `42db7842…20e0c4`). Codi a [submission_hard/](submission_hard/); entrenament a [hard_dani/](hard_dani/) (vegeu-ne el `LLEGEIX-ME.md`).
+>
+> **Com funciona:**
+> 1. **Calendari del campus:** festius (la Mercè, Sant Joan, Nadal...) i tancaments es tracten com a diumenge.
+> 2. **Perfils per dia de l'any** (nucli gaussià de 12 dies), amb correccions lineals per horitzó a partir dels residus que l'agent observa en temps real.
+> 3. **MPC de 24 h estocàstic** amb 5 escenaris de demanda neta.
+> 4. **Pesos del score que s'adapten** al que s'ha vist i **final d'episodi a la càrrega inicial**, perquè l'energia que queda al final compta.
+>
+> **Validació (setmanes retingudes, episodis continus de 1.008 h, comparat amb la nostra v6):**
+>
+> | Prova | Màxim | **Dani** | Nostra v6 |
+> |---|---|---|---|
+> | A setm. 1–6 | 17,30 | **15,64** | 15,17 |
+> | A setm. 6–11 | 28,37 | **26,97** | 26,38 |
+> | B setm. 1–6 | 16,74 | **15,28** | 15,23 |
+> | B setm. 6–11 | 26,26 | **24,89** | 24,53 |
+>
+> La diferència entre setmanes vistes i no vistes és de només 0,13–0,30 punts, així que **generalitza bé** i no està sobreajustat.
+>
+> **Reentrenar:** descomprimiu `data/raw/paquet_participants_datathon_upc.zip` a l'arrel del repo, en una carpeta `paquet_participants_datathon_upc/`, i executeu des de `hard_dani/` l'ordre `python -B experiments/dani_hard_v2/train.py final`. Després, des de l'arrel, `python src/make_zip.py`.
+>
+> *Historial:* el que hi ha a continuació documenta la nostra versió anterior (v1→v6, l'última amb 19,22 a la web), que queda al commit `4544bdc`. Els scripts `src/cv_hard.py`, `src/tune_hard.py` i `src/train_forecast.py` són d'aquella versió.
+
 **Què canvia:** bateria **6.000 kWh / ±1.500 kW**, solar **×12** (a migdia sobra energia gratis i neta que, si no es guarda, es perd), i `obs` només dona **3 hores** de preu i CO₂, no 24. A més, `noves_dades_5min` inclou la meteo de l'hora anterior (irradiància, temperatures, vent). Té quota pròpia: 10 intents fins dissabte a les 21 h, 10 fins diumenge a les 8 h i 10 diumenge.
 
 **La nostra solució** ([submission_hard/](submission_hard/)): el mateix MPC-LP, amb tres canvis:

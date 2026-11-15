@@ -40,3 +40,8 @@ Registre de decisions tècniques i el seu perquè (servirà per a la presentaci�
 ## D10 — Autocorrecció online de les prediccions (14/11)
 **Decisió:** l'agent desa les seves prediccions i resta el 70 % de l'error mitjà per horitzó de les darreres 24 h.
 **Per què:** el test són els últims 7 dies de cada mes (la Mercè, Nadal, el tancament d'agost...), que són setmanes atípiques i no surten al train. Els models basats en perfils típics s'hi equivoquen de manera sistemàtica. En el test d'estrès amb consum ×0,65 val +0,44, i en setmanes normals no fa mal (+0,03).
+
+## D11 — L'agent del Dani passa a ser la solució del Mode Difícil (15/11)
+**Decisió:** `submission_hard/` = agent del Dani v6. El seu codi d'entrenament és a `hard_dani/`.
+**Per què:** treu 23,16 a la web (la nostra v6, 19,22) i guanya les 4 validacions amb setmanes retingudes. Gairebé no perd res en setmanes no vistes (0,13–0,30), així que no està sobreajustat al rànquing públic. La clau és el calendari (festius i tancaments) i acabar amb la càrrega inicial.
+**Risc conegut:** els festius estan escrits per al curs 2025–26 (és coneixement públic del calendari UPC, no dades del test), i l'agent suposa episodis web de 1.008 o 2.016 h.

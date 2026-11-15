@@ -1,0 +1,3 @@
+# Fitxers de model: bytes exactes (el SHA-256 ha de coincidir a tots els ordinadors)
+*.json -text
+*.zip binary

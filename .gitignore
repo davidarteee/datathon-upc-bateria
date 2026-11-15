@@ -1,6 +1,7 @@
 # Dades extretes / generades (es regeneren amb `python src/data.py`)
 data/train/
 data/processed/
+paquet_participants_datathon_upc/
 
 # Python
 __pycache__/
@@ -13,6 +14,7 @@ venv/
 submission.zip
 *.zip
 !data/raw/*.zip
+!submission_hard.zip
 
 # Sistema / editors
 .DS_Store
